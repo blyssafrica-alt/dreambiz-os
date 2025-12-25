@@ -103,7 +103,9 @@ export default function OnboardingScreen() {
       } else if (errorCode === '23503') { // Foreign key violation
         displayMessage = 'User profile not found. Please try signing out and signing in again.';
       } else if (errorMessage.includes('row-level security') || errorMessage.includes('RLS') || errorCode === '42501') {
-        displayMessage = 'Security restriction: Unable to save business profile. Please ensure you are properly authenticated.';
+        displayMessage = 'Security restriction: Unable to create user profile. Please ensure the database trigger is set up (see database/create_user_profile_trigger.sql) or contact support.';
+      } else if (errorMessage.includes('database trigger')) {
+        displayMessage = errorMessage; // Use the enhanced message from BusinessContext
       } else if (errorMessage.includes('Cannot save business profile')) {
         displayMessage = errorMessage; // Use the enhanced message from BusinessContext
       }

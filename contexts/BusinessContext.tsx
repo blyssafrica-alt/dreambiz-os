@@ -117,16 +117,18 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     try {
       // First, ensure the user profile exists in the users table
       // This is required because business_profiles has a foreign key constraint on user_id
+      // Note: If a database trigger is set up, the profile should be created automatically
       if (!user && authUser) {
         console.log('User profile not found, checking if it exists...');
         try {
           const provider = getProvider();
           
-          // First, try to get the profile (it might already exist)
+          // First, try to get the profile (it might already exist or be created by trigger)
           let profile = await provider.getUserProfile(authUser.id);
           
           if (!profile) {
             // Profile doesn't exist, try to create it
+            // If a database trigger is set up, this might fail with RLS but trigger will create it
             console.log('Creating user profile...');
             try {
               profile = await provider.createUserProfile(authUser.id, {
@@ -140,15 +142,22 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
               const createErrorMessage = createError?.message || (typeof createError === 'string' ? createError : JSON.stringify(createError));
               const createErrorCode = (createError as any)?.code || '';
               
-              // If RLS blocks it, provide helpful error
+              // If RLS blocks it, wait a moment and check if trigger created it
               if (createErrorMessage.includes('row-level security') || createErrorMessage.includes('RLS') || createErrorCode === '42501') {
-                throw new Error('Unable to create user profile due to security restrictions. Please ensure you are properly authenticated and try again.');
-              }
-              
-              // If it's a duplicate, that's okay - profile might have been created by another process
-              if (createErrorMessage.includes('duplicate') || createErrorMessage.includes('already exists')) {
-                console.log('Profile already exists (duplicate key), continuing...');
-                // Try to fetch it again
+                console.log('RLS blocked creation, checking if trigger created profile...');
+                // Wait for trigger to potentially create it
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                profile = await provider.getUserProfile(authUser.id);
+                
+                if (!profile) {
+                  // Still no profile - trigger might not be set up
+                  throw new Error('User profile does not exist and could not be created. Please contact support or ensure the database trigger is configured. See database/create_user_profile_trigger.sql');
+                } else {
+                  console.log('✅ User profile created by database trigger');
+                }
+              } else if (createErrorMessage.includes('duplicate') || createErrorMessage.includes('already exists')) {
+                // Duplicate key - profile was created by another process
+                console.log('Profile already exists (duplicate key), fetching...');
                 profile = await provider.getUserProfile(authUser.id);
               } else {
                 throw createError;
@@ -156,6 +165,11 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
             }
           } else {
             console.log('✅ User profile already exists');
+          }
+          
+          // Verify we have a profile now
+          if (!profile) {
+            throw new Error('User profile is required but could not be created or retrieved');
           }
         } catch (profileError: any) {
           // If we still don't have a profile, we can't proceed

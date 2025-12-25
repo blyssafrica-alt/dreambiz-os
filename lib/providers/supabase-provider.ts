@@ -136,6 +136,14 @@ export class SupabaseProvider implements IBackendProvider {
   }
 
   async createUserProfile(userId: string, profile: Omit<UserProfile, 'id' | 'createdAt'>): Promise<UserProfile> {
+    // First, check if profile already exists (might have been created by trigger)
+    const existing = await this.getUserProfile(userId);
+    if (existing) {
+      console.log('User profile already exists, returning existing profile');
+      return existing;
+    }
+
+    // Try to create the profile
     const result = await this.insert<any>({
       table: 'users',
       data: {
@@ -147,8 +155,38 @@ export class SupabaseProvider implements IBackendProvider {
       },
     });
 
-    if (result.error) throw result.error;
-    if (!result.data) throw new Error('Failed to create user profile');
+    // If insert fails due to RLS, check if it was created by trigger
+    if (result.error) {
+      const errorMessage = result.error?.message || String(result.error);
+      const errorCode = (result.error as any)?.code || '';
+      
+      // If it's an RLS error or duplicate key, check if profile exists now
+      if (errorMessage.includes('row-level security') || 
+          errorMessage.includes('RLS') || 
+          errorCode === '42501' ||
+          errorMessage.includes('duplicate') ||
+          errorMessage.includes('already exists')) {
+        
+        // Wait a moment for trigger to complete, then check again
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const existingAfterError = await this.getUserProfile(userId);
+        if (existingAfterError) {
+          console.log('User profile created by trigger after RLS error');
+          return existingAfterError;
+        }
+      }
+      
+      throw result.error;
+    }
+    
+    if (!result.data) {
+      // Check one more time if trigger created it
+      const existingAfterInsert = await this.getUserProfile(userId);
+      if (existingAfterInsert) {
+        return existingAfterInsert;
+      }
+      throw new Error('Failed to create user profile');
+    }
 
     return {
       id: result.data.id,
