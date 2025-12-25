@@ -118,23 +118,56 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       // First, ensure the user profile exists in the users table
       // This is required because business_profiles has a foreign key constraint on user_id
       if (!user && authUser) {
-        console.log('User profile not found, creating it before saving business...');
+        console.log('User profile not found, checking if it exists...');
         try {
           const provider = getProvider();
-          await provider.createUserProfile(authUser.id, {
-            email: authUser.email,
-            name: authUser.metadata?.name || authUser.name || 'User',
-            isSuperAdmin: false,
-          });
-          console.log('✅ User profile created');
-        } catch (profileError: any) {
-          // If profile creation fails, check if it's because it already exists
-          const errorMessage = profileError?.message || String(profileError);
-          if (!errorMessage.includes('duplicate') && !errorMessage.includes('already exists')) {
-            console.warn('Could not create user profile:', errorMessage);
-            // Continue anyway - might work if RLS allows it
+          
+          // First, try to get the profile (it might already exist)
+          let profile = await provider.getUserProfile(authUser.id);
+          
+          if (!profile) {
+            // Profile doesn't exist, try to create it
+            console.log('Creating user profile...');
+            try {
+              profile = await provider.createUserProfile(authUser.id, {
+                email: authUser.email,
+                name: authUser.metadata?.name || authUser.name || 'User',
+                isSuperAdmin: false,
+              });
+              console.log('✅ User profile created');
+            } catch (createError: any) {
+              // Extract error message properly
+              const createErrorMessage = createError?.message || (typeof createError === 'string' ? createError : JSON.stringify(createError));
+              const createErrorCode = (createError as any)?.code || '';
+              
+              // If RLS blocks it, provide helpful error
+              if (createErrorMessage.includes('row-level security') || createErrorMessage.includes('RLS') || createErrorCode === '42501') {
+                throw new Error('Unable to create user profile due to security restrictions. Please ensure you are properly authenticated and try again.');
+              }
+              
+              // If it's a duplicate, that's okay - profile might have been created by another process
+              if (createErrorMessage.includes('duplicate') || createErrorMessage.includes('already exists')) {
+                console.log('Profile already exists (duplicate key), continuing...');
+                // Try to fetch it again
+                profile = await provider.getUserProfile(authUser.id);
+              } else {
+                throw createError;
+              }
+            }
+          } else {
+            console.log('✅ User profile already exists');
           }
+        } catch (profileError: any) {
+          // If we still don't have a profile, we can't proceed
+          const errorMessage = profileError?.message || (typeof profileError === 'string' ? profileError : JSON.stringify(profileError));
+          console.error('Failed to ensure user profile exists:', errorMessage);
+          throw new Error(`Cannot save business profile: ${errorMessage}`);
         }
+      }
+      
+      // Verify user_id exists before proceeding
+      if (!user && !authUser) {
+        throw new Error('User authentication required to save business profile');
       }
 
       // Prepare the data object - only include id if it's a valid UUID
@@ -211,22 +244,40 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       setBusiness(savedBusiness);
       setHasOnboarded(true);
     } catch (error: any) {
-      // Better error logging
-      const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      // Better error logging - extract message properly
+      let errorMessage = '';
+      if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.toString) {
+        errorMessage = error.toString();
+      } else {
+        // Try to stringify, but handle circular references
+        try {
+          errorMessage = JSON.stringify(error);
+        } catch {
+          errorMessage = 'Unknown error occurred';
+        }
+      }
+      
       const errorCode = error?.code || '';
       const errorDetails = error?.details || '';
+      const errorHint = error?.hint || '';
       
       console.error('Failed to save business:', {
         message: errorMessage,
         code: errorCode,
         details: errorDetails,
+        hint: errorHint,
         fullError: error,
       });
       
-      // Re-throw with better message
+      // Create enhanced error with all details
       const enhancedError = new Error(errorMessage);
       (enhancedError as any).code = errorCode;
       (enhancedError as any).details = errorDetails;
+      (enhancedError as any).hint = errorHint;
       throw enhancedError;
     }
   };

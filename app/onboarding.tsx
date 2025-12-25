@@ -76,24 +76,42 @@ export default function OnboardingScreen() {
       await saveBusiness(business);
       router.replace('/(tabs)');
     } catch (error: any) {
-      // Better error message handling
-      const errorMessage = error?.message || error?.details || (typeof error === 'string' ? error : 'Failed to save business profile');
+      // Better error message handling - extract message properly
+      let errorMessage = '';
+      if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (error?.toString) {
+        errorMessage = error.toString();
+      } else {
+        try {
+          errorMessage = JSON.stringify(error);
+        } catch {
+          errorMessage = 'Failed to save business profile';
+        }
+      }
+      
       const errorCode = error?.code || '';
+      const errorDetails = error?.details || '';
       
       let displayMessage = errorMessage;
       
       // Provide helpful messages for common errors
-      if (errorMessage.includes('foreign key constraint')) {
-        displayMessage = 'User profile not found. Please try signing out and signing in again.';
-      } else if (errorMessage.includes('violates foreign key')) {
+      if (errorMessage.includes('foreign key constraint') || errorMessage.includes('violates foreign key')) {
         displayMessage = 'User profile not found. Please try signing out and signing in again.';
       } else if (errorCode === '23503') { // Foreign key violation
         displayMessage = 'User profile not found. Please try signing out and signing in again.';
+      } else if (errorMessage.includes('row-level security') || errorMessage.includes('RLS') || errorCode === '42501') {
+        displayMessage = 'Security restriction: Unable to save business profile. Please ensure you are properly authenticated.';
+      } else if (errorMessage.includes('Cannot save business profile')) {
+        displayMessage = errorMessage; // Use the enhanced message from BusinessContext
       }
       
       console.error('Failed to save business:', {
         message: errorMessage,
         code: errorCode,
+        details: errorDetails,
         fullError: error,
       });
       
