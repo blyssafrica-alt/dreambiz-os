@@ -76,7 +76,28 @@ export default function OnboardingScreen() {
       await saveBusiness(business);
       router.replace('/(tabs)');
     } catch (error: any) {
-      RNAlert.alert('Error', error?.message || 'Failed to save business profile');
+      // Better error message handling
+      const errorMessage = error?.message || error?.details || (typeof error === 'string' ? error : 'Failed to save business profile');
+      const errorCode = error?.code || '';
+      
+      let displayMessage = errorMessage;
+      
+      // Provide helpful messages for common errors
+      if (errorMessage.includes('foreign key constraint')) {
+        displayMessage = 'User profile not found. Please try signing out and signing in again.';
+      } else if (errorMessage.includes('violates foreign key')) {
+        displayMessage = 'User profile not found. Please try signing out and signing in again.';
+      } else if (errorCode === '23503') { // Foreign key violation
+        displayMessage = 'User profile not found. Please try signing out and signing in again.';
+      }
+      
+      console.error('Failed to save business:', {
+        message: errorMessage,
+        code: errorCode,
+        fullError: error,
+      });
+      
+      RNAlert.alert('Error', displayMessage);
     }
   };
 

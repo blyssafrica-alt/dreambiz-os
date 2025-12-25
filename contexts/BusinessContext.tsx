@@ -2,6 +2,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import { getProvider } from '@/lib/providers';
 import type { 
   BusinessProfile, 
   Transaction, 
@@ -114,6 +115,28 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     if (!userId) throw new Error('User not authenticated');
 
     try {
+      // First, ensure the user profile exists in the users table
+      // This is required because business_profiles has a foreign key constraint on user_id
+      if (!user && authUser) {
+        console.log('User profile not found, creating it before saving business...');
+        try {
+          const provider = getProvider();
+          await provider.createUserProfile(authUser.id, {
+            email: authUser.email,
+            name: authUser.metadata?.name || authUser.name || 'User',
+            isSuperAdmin: false,
+          });
+          console.log('✅ User profile created');
+        } catch (profileError: any) {
+          // If profile creation fails, check if it's because it already exists
+          const errorMessage = profileError?.message || String(profileError);
+          if (!errorMessage.includes('duplicate') && !errorMessage.includes('already exists')) {
+            console.warn('Could not create user profile:', errorMessage);
+            // Continue anyway - might work if RLS allows it
+          }
+        }
+      }
+
       // Prepare the data object - only include id if it's a valid UUID
       // For new businesses, let the database generate the UUID
       const isExistingBusiness = business?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(business.id);
@@ -146,7 +169,28 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Better error message handling
+        const errorMessage = error?.message || String(error);
+        const errorCode = (error as any)?.code || '';
+        const errorDetails = (error as any)?.details || '';
+        const errorHint = (error as any)?.hint || '';
+        
+        console.error('Failed to save business:', {
+          message: errorMessage,
+          code: errorCode,
+          details: errorDetails,
+          hint: errorHint,
+          fullError: error,
+        });
+        
+        // Create a more descriptive error
+        const enhancedError = new Error(errorMessage);
+        (enhancedError as any).code = errorCode;
+        (enhancedError as any).details = errorDetails;
+        (enhancedError as any).hint = errorHint;
+        throw enhancedError;
+      }
 
       // Use the data returned from the database (includes the generated UUID if it was new)
       const savedBusiness: BusinessProfile = {
@@ -166,9 +210,24 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
 
       setBusiness(savedBusiness);
       setHasOnboarded(true);
-    } catch (error) {
-      console.error('Failed to save business:', error);
-      throw error;
+    } catch (error: any) {
+      // Better error logging
+      const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
+      const errorCode = error?.code || '';
+      const errorDetails = error?.details || '';
+      
+      console.error('Failed to save business:', {
+        message: errorMessage,
+        code: errorCode,
+        details: errorDetails,
+        fullError: error,
+      });
+      
+      // Re-throw with better message
+      const enhancedError = new Error(errorMessage);
+      (enhancedError as any).code = errorCode;
+      (enhancedError as any).details = errorDetails;
+      throw enhancedError;
     }
   };
 
