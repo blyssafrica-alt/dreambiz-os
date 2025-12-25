@@ -1,0 +1,525 @@
+import { router } from 'expo-router';
+import { 
+  Building2, 
+  DollarSign, 
+  Briefcase,
+  ChevronRight 
+} from 'lucide-react-native';
+import { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert as RNAlert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBusiness } from '@/contexts/BusinessContext';
+import type { BusinessProfile, BusinessType, BusinessStage, Currency } from '@/types/business';
+
+const businessTypes: { value: BusinessType; label: string }[] = [
+  { value: 'retail', label: 'Retail Shop' },
+  { value: 'services', label: 'Services' },
+  { value: 'restaurant', label: 'Restaurant/Food' },
+  { value: 'salon', label: 'Salon/Beauty' },
+  { value: 'agriculture', label: 'Agriculture' },
+  { value: 'construction', label: 'Construction' },
+  { value: 'transport', label: 'Transport' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'other', label: 'Other' },
+];
+
+const businessStages: { value: BusinessStage; label: string; desc: string }[] = [
+  { value: 'idea', label: 'Idea Stage', desc: 'Planning to start' },
+  { value: 'running', label: 'Running', desc: 'Already operating' },
+  { value: 'growing', label: 'Growing', desc: 'Expanding operations' },
+];
+
+export default function OnboardingScreen() {
+  const { saveBusiness } = useBusiness();
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    name: '',
+    owner: '',
+    type: 'retail' as BusinessType,
+    stage: 'running' as BusinessStage,
+    location: '',
+    capital: '',
+    currency: 'USD' as Currency,
+    phone: '',
+  });
+
+  const handleComplete = async () => {
+    if (!formData.name || !formData.owner || !formData.location || !formData.capital) {
+      RNAlert.alert('Missing Information', 'Please fill in all required fields');
+      return;
+    }
+
+    const business: BusinessProfile = {
+      id: Date.now().toString(),
+      name: formData.name,
+      owner: formData.owner,
+      type: formData.type,
+      stage: formData.stage,
+      location: formData.location,
+      capital: parseFloat(formData.capital) || 0,
+      currency: formData.currency,
+      phone: formData.phone,
+      createdAt: new Date().toISOString(),
+    };
+
+    await saveBusiness(business);
+    router.replace('/(tabs)');
+  };
+
+  const renderStep1 = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Building2 size={48} color="#0066CC" />
+      </View>
+      <Text style={styles.stepTitle}>Let&apos;s set up your business</Text>
+      <Text style={styles.stepDesc}>
+        This will take 2 minutes. Your data stays on your device.
+      </Text>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Business Name *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Sarah&apos;s Salon"
+          value={formData.name}
+          onChangeText={(text) => setFormData({ ...formData, name: text })}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Owner Name *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Your full name"
+          value={formData.owner}
+          onChangeText={(text) => setFormData({ ...formData, owner: text })}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Phone Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="+263..."
+          keyboardType="phone-pad"
+          value={formData.phone}
+          onChangeText={(text) => setFormData({ ...formData, phone: text })}
+        />
+      </View>
+
+      <TouchableOpacity style={styles.nextButton} onPress={() => setStep(2)}>
+        <Text style={styles.nextButtonText}>Continue</Text>
+        <ChevronRight size={20} color="#FFF" />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Briefcase size={48} color="#0066CC" />
+      </View>
+      <Text style={styles.stepTitle}>About your business</Text>
+      <Text style={styles.stepDesc}>
+        Help us customize the tools for you
+      </Text>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Business Type *</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+          {businessTypes.map((type) => (
+            <TouchableOpacity
+              key={type.value}
+              style={[
+                styles.chip,
+                formData.type === type.value && styles.chipActive,
+              ]}
+              onPress={() => setFormData({ ...formData, type: type.value })}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  formData.type === type.value && styles.chipTextActive,
+                ]}
+              >
+                {type.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Business Stage *</Text>
+        {businessStages.map((stage) => (
+          <TouchableOpacity
+            key={stage.value}
+            style={[
+              styles.stageOption,
+              formData.stage === stage.value && styles.stageOptionActive,
+            ]}
+            onPress={() => setFormData({ ...formData, stage: stage.value })}
+          >
+            <View>
+              <Text
+                style={[
+                  styles.stageLabel,
+                  formData.stage === stage.value && styles.stageLabelActive,
+                ]}
+              >
+                {stage.label}
+              </Text>
+              <Text style={styles.stageDesc}>{stage.desc}</Text>
+            </View>
+            {formData.stage === stage.value && (
+              <View style={styles.checkCircle} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.nextButton} onPress={() => setStep(3)}>
+          <Text style={styles.nextButtonText}>Continue</Text>
+          <ChevronRight size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderStep3 = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <DollarSign size={48} color="#0066CC" />
+      </View>
+      <Text style={styles.stepTitle}>Financial setup</Text>
+      <Text style={styles.stepDesc}>
+        This helps us track your progress
+      </Text>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Starting Capital *</Text>
+        <View style={styles.currencyRow}>
+          <TouchableOpacity
+            style={[
+              styles.currencyButton,
+              formData.currency === 'USD' && styles.currencyButtonActive,
+            ]}
+            onPress={() => setFormData({ ...formData, currency: 'USD' })}
+          >
+            <Text
+              style={[
+                styles.currencyButtonText,
+                formData.currency === 'USD' && styles.currencyButtonTextActive,
+              ]}
+            >
+              USD
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.currencyButton,
+              formData.currency === 'ZWL' && styles.currencyButtonActive,
+            ]}
+            onPress={() => setFormData({ ...formData, currency: 'ZWL' })}
+          >
+            <Text
+              style={[
+                styles.currencyButtonText,
+                formData.currency === 'ZWL' && styles.currencyButtonTextActive,
+              ]}
+            >
+              ZWL
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <TextInput
+          style={styles.input}
+          placeholder="0.00"
+          keyboardType="decimal-pad"
+          value={formData.capital}
+          onChangeText={(text) => setFormData({ ...formData, capital: text })}
+        />
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>Location *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g. Harare, CBD"
+          value={formData.location}
+          onChangeText={(text) => setFormData({ ...formData, location: text })}
+        />
+      </View>
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.completeButton} onPress={handleComplete}>
+          <Text style={styles.completeButtonText}>Complete Setup</Text>
+          <ChevronRight size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <Text style={styles.logo}>DreamBig</Text>
+          <Text style={styles.subtitle}>Business OS</Text>
+        </View>
+
+        <View style={styles.progress}>
+          <View style={[styles.progressDot, step >= 1 && styles.progressDotActive]} />
+          <View style={[styles.progressLine, step >= 2 && styles.progressLineActive]} />
+          <View style={[styles.progressDot, step >= 2 && styles.progressDotActive]} />
+          <View style={[styles.progressLine, step >= 3 && styles.progressLineActive]} />
+          <View style={[styles.progressDot, step >= 3 && styles.progressDotActive]} />
+        </View>
+
+        {step === 1 && renderStep1()}
+        {step === 2 && renderStep2()}
+        {step === 3 && renderStep3()}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollContent: {
+    padding: 24,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logo: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    color: '#0066CC',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  progress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 40,
+  },
+  progressDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#E2E8F0',
+  },
+  progressDotActive: {
+    backgroundColor: '#0066CC',
+  },
+  progressLine: {
+    width: 48,
+    height: 2,
+    backgroundColor: '#E2E8F0',
+  },
+  progressLineActive: {
+    backgroundColor: '#0066CC',
+  },
+  stepContainer: {
+    gap: 24,
+  },
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+  },
+  stepTitle: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+    textAlign: 'center',
+  },
+  stepDesc: {
+    fontSize: 15,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#334155',
+  },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    backgroundColor: '#FFF',
+    color: '#0F172A',
+  },
+  chipScroll: {
+    marginHorizontal: -24,
+    paddingHorizontal: 24,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 8,
+  },
+  chipActive: {
+    backgroundColor: '#0066CC',
+    borderColor: '#0066CC',
+  },
+  chipText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500' as const,
+  },
+  chipTextActive: {
+    color: '#FFF',
+  },
+  stageOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+  },
+  stageOptionActive: {
+    borderColor: '#0066CC',
+    backgroundColor: '#EFF6FF',
+  },
+  stageLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#334155',
+  },
+  stageLabelActive: {
+    color: '#0066CC',
+  },
+  stageDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#0066CC',
+  },
+  currencyRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 8,
+  },
+  currencyButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+  },
+  currencyButtonActive: {
+    backgroundColor: '#0066CC',
+    borderColor: '#0066CC',
+  },
+  currencyButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  currencyButtonTextActive: {
+    color: '#FFF',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  backButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+  },
+  backButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  nextButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#0066CC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#FFF',
+  },
+  completeButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#10B981',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  completeButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#FFF',
+  },
+});
