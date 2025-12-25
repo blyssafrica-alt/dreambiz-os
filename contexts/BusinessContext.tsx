@@ -12,7 +12,7 @@ import type {
 } from '@/types/business';
 
 export const [BusinessContext, useBusiness] = createContextHook(() => {
-  const { user } = useAuth();
+  const { user, authUser } = useAuth();
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -23,18 +23,21 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
 
+  // Get user ID - use authUser.id if available (even if profile not loaded yet)
+  const userId = authUser?.id || user?.id;
+
   const loadData = useCallback(async () => {
-    if (!user?.id) {
+    if (!userId) {
       setIsLoading(false);
       return;
     }
 
     try {
       const [businessRes, transactionsRes, documentsRes, exchangeRateRes] = await Promise.all([
-        supabase.from('business_profiles').select('*').eq('user_id', user.id).single(),
-        supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false }),
-        supabase.from('documents').select('*').eq('user_id', user.id).order('date', { ascending: false }),
-        supabase.from('exchange_rates').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single(),
+        supabase.from('business_profiles').select('*').eq('user_id', userId).single(),
+        supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
+        supabase.from('documents').select('*').eq('user_id', userId).order('date', { ascending: false }),
+        supabase.from('exchange_rates').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
       if (businessRes.data) {
@@ -97,25 +100,25 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   useEffect(() => {
-    if (user?.id) {
+    if (userId) {
       loadData();
     } else {
       setIsLoading(false);
     }
-  }, [user?.id, loadData]);
+  }, [userId, loadData]);
 
   const saveBusiness = async (newBusiness: BusinessProfile) => {
-    if (!user?.id) throw new Error('User not authenticated');
+    if (!userId) throw new Error('User not authenticated');
 
     try {
       const { error } = await supabase
         .from('business_profiles')
         .upsert({
           id: newBusiness.id,
-          user_id: user.id,
+          user_id: userId,
           name: newBusiness.name,
           type: newBusiness.type,
           stage: newBusiness.stage,
@@ -139,13 +142,13 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
-    if (!user?.id || !business?.id) throw new Error('User or business not found');
+    if (!userId || !business?.id) throw new Error('User or business not found');
 
     try {
       const { data, error } = await supabase
         .from('transactions')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           business_id: business.id,
           type: transaction.type,
           amount: transaction.amount,
@@ -219,7 +222,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   };
 
   const addDocument = async (document: Omit<Document, 'id' | 'createdAt' | 'documentNumber'>) => {
-    if (!user?.id || !business?.id) throw new Error('User or business not found');
+    if (!userId || !business?.id) throw new Error('User or business not found');
 
     try {
       const count = documents.filter(d => d.type === document.type).length + 1;
@@ -229,7 +232,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       const { data, error } = await supabase
         .from('documents')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           business_id: business.id,
           type: document.type,
           document_number: documentNumber,
@@ -272,13 +275,13 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   };
 
   const updateExchangeRate = async (rate: number) => {
-    if (!user?.id) throw new Error('User not authenticated');
+    if (!userId) throw new Error('User not authenticated');
 
     try {
       const { data, error } = await supabase
         .from('exchange_rates')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           usd_to_zwl: rate,
         })
         .select()
