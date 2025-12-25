@@ -33,9 +33,10 @@ export default function SignInScreen() {
     setIsLoading(true);
     try {
       await signIn(email, password);
-      router.replace('/onboarding');
-    } catch {
-      RNAlert.alert('Error', 'Invalid email or password');
+      // Don't manually redirect - let _layout.tsx handle navigation based on auth state
+      // This ensures proper routing based on isAuthenticated and hasOnboarded
+    } catch (error: any) {
+      RNAlert.alert('Error', error?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }

@@ -6,7 +6,7 @@
     ],
     "jsx": "react-native",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "allowJs": true,
     "strict": false,
@@ -15,7 +15,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "baseUrl": null,
+    "baseUrl": ".",
     "typeRoots": [
       "./node_modules/@types"
     ],

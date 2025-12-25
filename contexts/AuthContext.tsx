@@ -179,7 +179,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     signUp,
     signIn,
     signOut,
-    isAuthenticated: !!user,
+    isAuthenticated: !!authUser || !!user, // Authenticated if we have authUser (even if profile not loaded yet)
     authUser, // Generic auth user (replaces supabaseUser)
   };
 });
