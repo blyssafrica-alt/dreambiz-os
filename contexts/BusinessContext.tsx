@@ -114,26 +114,57 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     if (!userId) throw new Error('User not authenticated');
 
     try {
-      const { error } = await supabase
+      // Prepare the data object - only include id if it's a valid UUID
+      // For new businesses, let the database generate the UUID
+      const isExistingBusiness = business?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(business.id);
+      
+      const upsertData: any = {
+        user_id: userId,
+        name: newBusiness.name,
+        type: newBusiness.type,
+        stage: newBusiness.stage,
+        location: newBusiness.location,
+        capital: newBusiness.capital,
+        currency: newBusiness.currency,
+        owner: newBusiness.owner,
+        phone: newBusiness.phone || null,
+        email: newBusiness.email || null,
+        address: newBusiness.address || null,
+      };
+
+      // Only include id if we have an existing business with a valid UUID
+      if (isExistingBusiness) {
+        upsertData.id = business.id;
+      }
+
+      // Use upsert with user_id as conflict target (since user_id is UNIQUE)
+      const { data, error } = await supabase
         .from('business_profiles')
-        .upsert({
-          id: newBusiness.id,
-          user_id: userId,
-          name: newBusiness.name,
-          type: newBusiness.type,
-          stage: newBusiness.stage,
-          location: newBusiness.location,
-          capital: newBusiness.capital,
-          currency: newBusiness.currency,
-          owner: newBusiness.owner,
-          phone: newBusiness.phone || null,
-          email: newBusiness.email || null,
-          address: newBusiness.address || null,
-        });
+        .upsert(upsertData, {
+          onConflict: 'user_id',
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setBusiness(newBusiness);
+      // Use the data returned from the database (includes the generated UUID if it was new)
+      const savedBusiness: BusinessProfile = {
+        id: data.id,
+        name: data.name,
+        type: data.type as any,
+        stage: data.stage as any,
+        location: data.location,
+        capital: Number(data.capital),
+        currency: data.currency as any,
+        owner: data.owner,
+        phone: data.phone || undefined,
+        email: data.email || undefined,
+        address: data.address || undefined,
+        createdAt: data.created_at,
+      };
+
+      setBusiness(savedBusiness);
       setHasOnboarded(true);
     } catch (error) {
       console.error('Failed to save business:', error);
