@@ -173,8 +173,29 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           }
         } catch (profileError: any) {
           // If we still don't have a profile, we can't proceed
-          const errorMessage = profileError?.message || (typeof profileError === 'string' ? profileError : JSON.stringify(profileError));
-          console.error('Failed to ensure user profile exists:', errorMessage);
+          // Extract error message properly to avoid [object Object]
+          let errorMessage = '';
+          if (typeof profileError === 'string') {
+            errorMessage = profileError;
+          } else if (profileError?.message) {
+            errorMessage = profileError.message;
+          } else if (profileError?.toString) {
+            errorMessage = profileError.toString();
+          } else {
+            try {
+              errorMessage = JSON.stringify(profileError);
+            } catch {
+              errorMessage = 'Unknown error occurred';
+            }
+          }
+          
+          console.error('Failed to ensure user profile exists:', {
+            message: errorMessage,
+            code: profileError?.code,
+            details: profileError?.details,
+            fullError: profileError,
+          });
+          
           throw new Error(`Cannot save business profile: ${errorMessage}`);
         }
       }

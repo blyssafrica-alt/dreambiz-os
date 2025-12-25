@@ -137,13 +137,35 @@ export class SupabaseProvider implements IBackendProvider {
 
   async createUserProfile(userId: string, profile: Omit<UserProfile, 'id' | 'createdAt'>): Promise<UserProfile> {
     // First, check if profile already exists (might have been created by trigger)
-    const existing = await this.getUserProfile(userId);
+    let existing = await this.getUserProfile(userId);
     if (existing) {
       console.log('User profile already exists, returning existing profile');
       return existing;
     }
 
-    // Try to create the profile
+    // Try to use the RPC function to sync the profile (for existing users)
+    // This function uses SECURITY DEFINER so it can bypass RLS
+    try {
+      console.log('Attempting to sync user profile via RPC function...');
+      const { error: rpcError } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
+      
+      if (!rpcError) {
+        // Wait a moment for the function to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+        existing = await this.getUserProfile(userId);
+        if (existing) {
+          console.log('✅ User profile synced via RPC function');
+          return existing;
+        }
+      } else {
+        console.log('RPC function not available or failed:', rpcError.message);
+      }
+    } catch (rpcErr: any) {
+      console.log('RPC function not available:', rpcErr.message);
+      // Continue to try direct insert
+    }
+
+    // Try to create the profile directly
     const result = await this.insert<any>({
       table: 'users',
       data: {
@@ -155,7 +177,7 @@ export class SupabaseProvider implements IBackendProvider {
       },
     });
 
-    // If insert fails due to RLS, check if it was created by trigger
+    // If insert fails due to RLS, check if it was created by trigger or RPC
     if (result.error) {
       const errorMessage = result.error?.message || String(result.error);
       const errorCode = (result.error as any)?.code || '';
@@ -167,23 +189,27 @@ export class SupabaseProvider implements IBackendProvider {
           errorMessage.includes('duplicate') ||
           errorMessage.includes('already exists')) {
         
-        // Wait a moment for trigger to complete, then check again
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const existingAfterError = await this.getUserProfile(userId);
-        if (existingAfterError) {
-          console.log('User profile created by trigger after RLS error');
-          return existingAfterError;
+        // Wait a moment for trigger/RPC to complete, then check again
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        existing = await this.getUserProfile(userId);
+        if (existing) {
+          console.log('✅ User profile created by trigger/RPC after RLS error');
+          return existing;
         }
       }
       
-      throw result.error;
+      // Create a better error message
+      const enhancedError = new Error(errorMessage);
+      (enhancedError as any).code = errorCode;
+      (enhancedError as any).details = (result.error as any)?.details;
+      throw enhancedError;
     }
     
     if (!result.data) {
-      // Check one more time if trigger created it
-      const existingAfterInsert = await this.getUserProfile(userId);
-      if (existingAfterInsert) {
-        return existingAfterInsert;
+      // Check one more time if trigger/RPC created it
+      existing = await this.getUserProfile(userId);
+      if (existing) {
+        return existing;
       }
       throw new Error('Failed to create user profile');
     }
