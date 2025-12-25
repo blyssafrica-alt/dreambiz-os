@@ -1,11 +1,21 @@
 import { Tabs } from "expo-router";
 import { Home, DollarSign, FileText, Calculator, Settings } from "lucide-react-native";
 import React from "react";
-import { Platform } from "react-native";
+import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import { lightTheme } from "@/constants/theme";
 
 export default function TabLayout() {
-  const { theme } = useTheme();
+  const { theme, isLoading } = useTheme();
+  
+  // Show loading indicator while theme is loading
+  if (isLoading || !theme) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <Tabs
