@@ -5,6 +5,7 @@ import { SupabaseProvider } from './supabase-provider';
 import { FirebaseProvider } from './firebase-provider';
 
 const STORAGE_KEY = 'dreambiz_backend_provider';
+const DEFAULT_PROVIDER: ProviderType = 'supabase'; // Supabase is the default provider
 
 export class ProviderManager {
   private currentProvider: IBackendProvider | null = null;
@@ -13,15 +14,16 @@ export class ProviderManager {
 
   constructor() {
     // Initialize available providers
+    // Supabase is the default and primary provider
     this.providers.set('supabase', new SupabaseProvider());
     this.providers.set('firebase', new FirebaseProvider());
     // Hybrid provider would combine both
   }
 
   async initialize(): Promise<void> {
-    // Load saved provider preference
+    // Load saved provider preference, default to Supabase
     const savedProvider = await AsyncStorage.getItem(STORAGE_KEY);
-    const providerType: ProviderType = (savedProvider as ProviderType) || 'supabase';
+    const providerType: ProviderType = (savedProvider as ProviderType) || DEFAULT_PROVIDER;
 
     await this.setProvider(providerType);
   }
@@ -60,7 +62,7 @@ export class ProviderManager {
 
   getCurrentProviderType(): ProviderType {
     if (!this.currentProvider) {
-      return 'supabase'; // default
+      return DEFAULT_PROVIDER; // Default to Supabase
     }
     return this.currentProvider.type;
   }
