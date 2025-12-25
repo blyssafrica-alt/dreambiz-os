@@ -45,7 +45,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Home 
               size={focused ? 26 : 24} 
               color={color} 
@@ -58,7 +58,7 @@ export default function TabLayout() {
         name="finances"
         options={{
           title: "Finances",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <DollarSign 
               size={focused ? 26 : 24} 
               color={color} 
@@ -71,7 +71,7 @@ export default function TabLayout() {
         name="documents"
         options={{
           title: "Documents",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <FileText 
               size={focused ? 26 : 24} 
               color={color} 
@@ -84,7 +84,7 @@ export default function TabLayout() {
         name="calculator"
         options={{
           title: "Calculator",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Calculator 
               size={focused ? 26 : 24} 
               color={color} 
@@ -97,7 +97,7 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Settings 
               size={focused ? 26 : 24} 
               color={color} 

@@ -1,24 +1,40 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+// Access environment variables - Expo loads EXPO_PUBLIC_* from .env
+// Try multiple methods to get the variables
+const supabaseUrl = 
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL ||
+  Constants.manifest?.extra?.EXPO_PUBLIC_SUPABASE_URL ||
+  process.env.EXPO_PUBLIC_SUPABASE_URL || 
+  '';
+
+const supabaseAnonKey = 
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  Constants.manifest?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+  '';
 
 // Validate environment variables
 if (!supabaseUrl) {
   throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_URL environment variable. ' +
-    'Please create a .env file in the root directory with your Supabase credentials. ' +
-    'See env.example for reference.'
+    'Missing EXPO_PUBLIC_SUPABASE_URL environment variable.\n\n' +
+    'Please ensure:\n' +
+    '1. A .env file exists in the root directory with EXPO_PUBLIC_SUPABASE_URL\n' +
+    '2. Restart your development server with: npm start -- --clear\n' +
+    '3. See env.example for reference.'
   );
 }
 
 if (!supabaseAnonKey) {
   throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable. ' +
-    'Please create a .env file in the root directory with your Supabase credentials. ' +
-    'See env.example for reference.'
+    'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable.\n\n' +
+    'Please ensure:\n' +
+    '1. A .env file exists in the root directory with EXPO_PUBLIC_SUPABASE_ANON_KEY\n' +
+    '2. Restart your development server with: npm start -- --clear\n' +
+    '3. See env.example for reference.'
   );
 }
 
