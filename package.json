@@ -6,7 +6,8 @@
     "start": "bunx rork start -p 2zczyx7ishbc2rvokmbz7 --tunnel",
     "start-web": "bunx rork start -p 2zczyx7ishbc2rvokmbz7 --web --tunnel",
     "start-web-dev": "DEBUG=expo* bunx rork start -p 2zczyx7ishbc2rvokmbz7 --web --tunnel",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "create-super-admin": "node scripts/create-super-admin.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

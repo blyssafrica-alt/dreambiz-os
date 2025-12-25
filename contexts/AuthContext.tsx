@@ -116,6 +116,16 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       return user;
     } catch (error: any) {
       console.error('Sign in error:', error);
+      
+      // Provide helpful error messages
+      if (error.message?.includes('Email not confirmed') || error.message?.includes('email_not_confirmed')) {
+        throw new Error('Please confirm your email address. Check your inbox for the confirmation email, or contact support if you need help.');
+      }
+      
+      if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
+        throw new Error('Invalid email or password. Please check your credentials and try again.');
+      }
+      
       throw new Error(error.message || 'Invalid credentials');
     }
   };

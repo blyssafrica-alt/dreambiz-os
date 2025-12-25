@@ -286,6 +286,9 @@ ALTER TABLE cashflow_projections ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own profile" ON users
   FOR SELECT USING (auth.uid()::text = id::text);
 
+CREATE POLICY "Users can insert their own profile" ON users
+  FOR INSERT WITH CHECK (auth.uid()::text = id::text);
+
 CREATE POLICY "Users can update their own profile" ON users
   FOR UPDATE USING (auth.uid()::text = id::text);
 
@@ -482,11 +485,28 @@ INSERT INTO books (title, description, category, features) VALUES
 -- ============================================
 -- CREATE SUPER ADMIN USER
 -- ============================================
--- Note: In production, use Supabase Auth for password hashing
--- This is a simple hash for demonstration (you should use proper password hashing)
-INSERT INTO users (email, name, password_hash, is_super_admin) 
-VALUES ('nashiezw@gmail.com', 'Super Admin', crypt('@12345678', gen_salt('bf')), true)
-ON CONFLICT (email) DO UPDATE SET is_super_admin = true;
+-- IMPORTANT: The super admin account must be created in Supabase Auth first!
+-- The users table entry will be created automatically when the user signs up,
+-- OR you can run the script: node scripts/create-super-admin.js
+--
+-- Super Admin Credentials:
+-- Email: nashiezw@gmail.com
+-- Password: @12345678
+--
+-- To create the super admin:
+-- 1. Run: node scripts/create-super-admin.js
+-- OR
+-- 2. Manually create in Supabase Dashboard:
+--    - Go to Authentication > Users > Add User
+--    - Email: nashiezw@gmail.com
+--    - Password: @12345678
+--    - Then update the users table to set is_super_admin = true
+--
+-- This SQL will only set is_super_admin = true if the user already exists
+-- (it won't create the auth user, only the profile)
+UPDATE users 
+SET is_super_admin = true 
+WHERE email = 'nashiezw@gmail.com';
 
 -- ============================================
 -- ANALYTICS & REPORTING VIEWS
