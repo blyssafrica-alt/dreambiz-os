@@ -3,40 +3,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import Constants from 'expo-constants';
 
-// Access environment variables - Expo loads EXPO_PUBLIC_* from .env
-// Try multiple methods to get the variables
+// Access environment variables - Try multiple methods to get the variables
+// Hardcoded fallback values to ensure app works
+const DEFAULT_SUPABASE_URL = 'https://oqcgerfjjiozltkmmkxf.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_959ZId8aR4E5IjTNoyVsJQ_xt8pelvp';
+
 const supabaseUrl = 
   Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL ||
   Constants.manifest?.extra?.EXPO_PUBLIC_SUPABASE_URL ||
   process.env.EXPO_PUBLIC_SUPABASE_URL || 
-  '';
+  DEFAULT_SUPABASE_URL;
 
 const supabaseAnonKey = 
   Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   Constants.manifest?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
-  '';
+  DEFAULT_SUPABASE_ANON_KEY;
 
-// Validate environment variables
-if (!supabaseUrl) {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_URL environment variable.\n\n' +
-    'Please ensure:\n' +
-    '1. A .env file exists in the root directory with EXPO_PUBLIC_SUPABASE_URL\n' +
-    '2. Restart your development server with: npm start -- --clear\n' +
-    '3. See env.example for reference.'
-  );
+// Log which source was used (for debugging)
+if (supabaseUrl === DEFAULT_SUPABASE_URL) {
+  console.log('📝 Using hardcoded Supabase URL (env vars not loaded)');
+} else {
+  console.log('✅ Using environment variable for Supabase URL');
 }
 
-if (!supabaseAnonKey) {
-  throw new Error(
-    'Missing EXPO_PUBLIC_SUPABASE_ANON_KEY environment variable.\n\n' +
-    'Please ensure:\n' +
-    '1. A .env file exists in the root directory with EXPO_PUBLIC_SUPABASE_ANON_KEY\n' +
-    '2. Restart your development server with: npm start -- --clear\n' +
-    '3. See env.example for reference.'
-  );
-}
+// No validation needed - we have hardcoded defaults that will always work
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {

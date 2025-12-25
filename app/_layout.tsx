@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BusinessContext, useBusiness } from "@/contexts/BusinessContext";
 import { AuthContext, useAuth } from "@/contexts/AuthContext";
 import { ThemeContext, useTheme } from "@/contexts/ThemeContext";
+import { ProviderContext } from "@/contexts/ProviderContext";
 import { StatusBar } from 'react-native';
 
 SplashScreen.preventAutoHideAsync();
@@ -71,11 +72,13 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ThemeContext>
-          <AuthContext>
-            <BusinessContext>
-              <RootLayoutNav />
-            </BusinessContext>
-          </AuthContext>
+          <ProviderContext>
+            <AuthContext>
+              <BusinessContext>
+                <RootLayoutNav />
+              </BusinessContext>
+            </AuthContext>
+          </ProviderContext>
         </ThemeContext>
       </GestureHandlerRootView>
     </QueryClientProvider>
