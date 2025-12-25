@@ -11,6 +11,8 @@ export class ProviderManager {
   private currentProvider: IBackendProvider | null = null;
   private providers: Map<ProviderType, IBackendProvider> = new Map();
   private listeners: Set<(provider: IBackendProvider) => void> = new Set();
+  private initializationPromise: Promise<void> | null = null;
+  private isInitialized: boolean = false;
 
   constructor() {
     // Initialize available providers
@@ -21,6 +23,17 @@ export class ProviderManager {
   }
 
   async initialize(): Promise<void> {
+    // Prevent multiple initializations
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this._doInitialize();
+    await this.initializationPromise;
+    this.isInitialized = true;
+  }
+
+  private async _doInitialize(): Promise<void> {
     // Load saved provider preference, default to Supabase
     const savedProvider = await AsyncStorage.getItem(STORAGE_KEY);
     const providerType: ProviderType = (savedProvider as ProviderType) || DEFAULT_PROVIDER;
@@ -54,8 +67,26 @@ export class ProviderManager {
   }
 
   getProvider(): IBackendProvider {
+    // Auto-initialize with default provider if not initialized yet
     if (!this.currentProvider) {
-      throw new Error('No provider initialized. Call initialize() first.');
+      console.warn('Provider not initialized, auto-initializing with default Supabase provider...');
+      // Synchronously set default provider (Supabase is already instantiated)
+      const defaultProvider = this.providers.get(DEFAULT_PROVIDER);
+      if (defaultProvider) {
+        this.currentProvider = defaultProvider;
+        // Initialize provider synchronously (it's already created, just need to call init)
+        defaultProvider.initialize().catch(error => {
+          console.error('Failed to initialize provider:', error);
+        });
+        // Also run full initialization in background to load saved preferences
+        if (!this.isInitialized) {
+          this.initialize().catch(error => {
+            console.error('Failed to run full provider initialization:', error);
+          });
+        }
+      } else {
+        throw new Error(`Default provider ${DEFAULT_PROVIDER} not found`);
+      }
     }
     return this.currentProvider;
   }

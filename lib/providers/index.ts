@@ -7,5 +7,8 @@ export * from './provider-manager';
 // Convenience function to get the current provider
 import { providerManager } from './provider-manager';
 
-export const getProvider = () => providerManager.getProvider();
+export const getProvider = () => {
+  // Auto-initialize if needed
+  return providerManager.getProvider();
+};
 
