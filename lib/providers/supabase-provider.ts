@@ -91,21 +91,48 @@ export class SupabaseProvider implements IBackendProvider {
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const result = await this.queryOne<UserProfile>({
-      table: 'users',
-      filters: { id: userId },
-    });
+    try {
+      const result = await this.queryOne<any>({
+        table: 'users',
+        filters: { id: userId },
+      });
 
-    if (result.error) throw result.error;
-    if (!result.data) return null;
+      if (result.error) {
+        // Extract error message properly
+        const errorMessage = result.error?.message || result.error?.toString() || 'Unknown error';
+        const errorCode = result.error?.code || '';
+        
+        // If it's a "not found" error (PGRST116), that's okay - profile doesn't exist yet
+        if (errorCode === 'PGRST116' || errorMessage.includes('No rows returned')) {
+          console.log(`User profile not found for userId: ${userId} (this is normal for new users)`);
+          return null;
+        }
+        
+        // For other errors, throw with proper message
+        const error = new Error(errorMessage);
+        (error as any).code = errorCode;
+        (error as any).details = result.error?.details;
+        (error as any).hint = result.error?.hint;
+        throw error;
+      }
+      
+      if (!result.data) return null;
 
-    return {
-      id: result.data.id,
-      email: result.data.email,
-      name: result.data.name,
-      createdAt: result.data.createdAt || result.data.created_at,
-      isSuperAdmin: result.data.isSuperAdmin || result.data.is_super_admin,
-    };
+      return {
+        id: result.data.id,
+        email: result.data.email,
+        name: result.data.name,
+        createdAt: result.data.createdAt || result.data.created_at,
+        isSuperAdmin: result.data.isSuperAdmin || result.data.is_super_admin,
+      };
+    } catch (error: any) {
+      // Re-throw with better error message
+      const errorMessage = error?.message || error?.toString() || 'Failed to get user profile';
+      const enhancedError = new Error(errorMessage);
+      (enhancedError as any).code = error?.code;
+      (enhancedError as any).details = error?.details;
+      throw enhancedError;
+    }
   }
 
   async createUserProfile(userId: string, profile: Omit<UserProfile, 'id' | 'createdAt'>): Promise<UserProfile> {
@@ -210,12 +237,19 @@ export class SupabaseProvider implements IBackendProvider {
       const { data, error } = await queryBuilder.single();
 
       if (error) {
-        return { data: null, error };
+        // Convert Supabase error to Error object with proper message
+        const errorObj = new Error(error.message || 'Database query failed');
+        (errorObj as any).code = error.code;
+        (errorObj as any).details = error.details;
+        (errorObj as any).hint = error.hint;
+        return { data: null, error: errorObj };
       }
 
       return { data: data as T, error: null };
-    } catch (error) {
-      return { data: null, error: error as Error };
+    } catch (error: any) {
+      // Ensure we return a proper Error object
+      const errorObj = error instanceof Error ? error : new Error(error?.message || String(error));
+      return { data: null, error: errorObj };
     }
   }
 

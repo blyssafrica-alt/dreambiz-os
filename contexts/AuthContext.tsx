@@ -16,6 +16,54 @@ export const [AuthContext, useAuth] = createContextHook(() => {
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   let unsubscribeAuth: (() => void) | null = null;
 
+  const loadUserProfile = async (userId: string, authUserData?: AuthUser) => {
+    try {
+      const provider = getProvider();
+      let profile = await provider.getUserProfile(userId);
+
+      if (!profile && authUserData) {
+        // Profile doesn't exist - try to create it from auth user metadata
+        console.log('User profile not found, attempting to create from auth user...');
+        try {
+          profile = await provider.createUserProfile(userId, {
+            email: authUserData.email,
+            name: authUserData.metadata?.name || 'User',
+            isSuperAdmin: false,
+          });
+          console.log('✅ User profile created automatically');
+        } catch (createError: any) {
+          console.warn('Could not auto-create profile:', createError?.message || createError);
+          // Profile will be created during onboarding
+        }
+      }
+
+      if (profile) {
+        setUser({
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          createdAt: profile.createdAt,
+          isSuperAdmin: profile.isSuperAdmin,
+        });
+      }
+    } catch (error: any) {
+      // Better error logging
+      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      const errorDetails = error?.details || error?.hint || '';
+      const errorCode = error?.code || '';
+      
+      console.error('Failed to load user profile:', {
+        userId,
+        error: errorMessage,
+        code: errorCode,
+        details: errorDetails,
+      });
+      
+      // Don't throw - allow app to continue even if profile doesn't exist
+      // The profile will be created during onboarding or sign-up
+    }
+  };
+
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -24,7 +72,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
         
         if (session?.user) {
           setAuthUser(session.user);
-          await loadUserProfile(session.user.id);
+          await loadUserProfile(session.user.id, session.user);
         }
       } catch (error) {
         console.error('Failed to load user:', error);
@@ -41,7 +89,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       console.log('Auth state changed:', user ? 'signed in' : 'signed out');
       if (user) {
         setAuthUser(user);
-        await loadUserProfile(user.id);
+        await loadUserProfile(user.id, user);
       } else {
         setUser(null);
         setAuthUser(null);
@@ -54,25 +102,6 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       }
     };
   }, []);
-
-  const loadUserProfile = async (userId: string) => {
-    try {
-      const provider = getProvider();
-      const profile = await provider.getUserProfile(userId);
-
-      if (profile) {
-        setUser({
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          createdAt: profile.createdAt,
-          isSuperAdmin: profile.isSuperAdmin,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load user profile:', error);
-    }
-  };
 
   const signUp = async (name: string, email: string, password: string) => {
     try {
@@ -111,7 +140,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       const authUser = await provider.signIn(email, password);
 
       setAuthUser(authUser);
-      await loadUserProfile(authUser.id);
+      await loadUserProfile(authUser.id, authUser);
       
       return user;
     } catch (error: any) {
