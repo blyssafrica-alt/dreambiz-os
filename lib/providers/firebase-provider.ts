@@ -94,20 +94,20 @@ export class FirebaseProvider implements IBackendProvider {
     throw new Error('Not implemented');
   }
 
-  async insert<T>(table: string, data: Omit<T, 'id' | 'created_at' | 'updated_at'>): Promise<DatabaseResult<T>> {
-    // const docRef = doc(collection(this.firestore, table));
-    // await setDoc(docRef, { ...data, created_at: new Date(), updated_at: new Date() });
-    // return { data: { id: docRef.id, ...data } as T, error: null };
+  async insert<T>(query: { table: string; data: Omit<T, 'id' | 'created_at' | 'updated_at'> }): Promise<DatabaseResult<T>> {
+    // const docRef = doc(collection(this.firestore, query.table));
+    // await setDoc(docRef, { ...query.data, created_at: new Date(), updated_at: new Date() });
+    // return { data: { id: docRef.id, ...query.data } as T, error: null };
     throw new Error('Not implemented');
   }
 
-  async update<T>(table: string, id: string, updates: Partial<T>): Promise<DatabaseResult<T>> {
-    // await updateDoc(doc(this.firestore, table, id), { ...updates, updated_at: new Date() });
+  async update<T>(query: { table: string; id: string; updates: Partial<T> }): Promise<DatabaseResult<T>> {
+    // await updateDoc(doc(this.firestore, query.table, query.id), { ...query.updates, updated_at: new Date() });
     throw new Error('Not implemented');
   }
 
-  async delete(table: string, id: string): Promise<DatabaseResult<void>> {
-    // await deleteDoc(doc(this.firestore, table, id));
+  async delete(query: { table: string; id: string }): Promise<DatabaseResult<void>> {
+    // await deleteDoc(doc(this.firestore, query.table, query.id));
     throw new Error('Not implemented');
   }
 }

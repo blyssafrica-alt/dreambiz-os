@@ -14,7 +14,6 @@ export const [AuthContext, useAuth] = createContextHook(() => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  let unsubscribeAuth: (() => void) | null = null;
 
   const loadUserProfile = async (userId: string, authUserData?: AuthUser) => {
     try {
@@ -48,7 +47,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
       }
     } catch (error: any) {
       // Better error logging
-      const errorMessage = error?.message || error?.toString() || 'Unknown error';
+      const errorMessage = error?.message || (typeof error === 'string' ? error : JSON.stringify(error));
       const errorDetails = error?.details || error?.hint || '';
       const errorCode = error?.code || '';
       
@@ -57,10 +56,12 @@ export const [AuthContext, useAuth] = createContextHook(() => {
         error: errorMessage,
         code: errorCode,
         details: errorDetails,
+        raw: error,
       });
       
       // Don't throw - allow app to continue even if profile doesn't exist
       // The profile will be created during onboarding or sign-up
+      // User can continue to app even if profile loading fails
     }
   };
 
@@ -85,7 +86,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     
     // Set up auth state listener
     const provider = getProvider();
-    unsubscribeAuth = provider.onAuthStateChange(async (user) => {
+    const unsubscribe = provider.onAuthStateChange(async (user) => {
       console.log('Auth state changed:', user ? 'signed in' : 'signed out');
       if (user) {
         setAuthUser(user);
@@ -97,8 +98,8 @@ export const [AuthContext, useAuth] = createContextHook(() => {
     });
 
     return () => {
-      if (unsubscribeAuth) {
-        unsubscribeAuth();
+      if (unsubscribe) {
+        unsubscribe();
       }
     };
   }, []);

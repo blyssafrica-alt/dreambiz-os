@@ -63,9 +63,9 @@ export interface IBackendProvider {
   // Database methods
   query<T>(query: DatabaseQuery): Promise<DatabaseListResult<T>>;
   queryOne<T>(query: DatabaseQuery): Promise<DatabaseResult<T>>;
-  insert<T>(table: string, data: Omit<T, 'id' | 'created_at' | 'updated_at'>): Promise<DatabaseResult<T>>;
-  update<T>(table: string, id: string, updates: Partial<T>): Promise<DatabaseResult<T>>;
-  delete(table: string, id: string): Promise<DatabaseResult<void>>;
+  insert<T>(query: { table: string; data: Omit<T, 'id' | 'created_at' | 'updated_at'> }): Promise<DatabaseResult<T>>;
+  update<T>(query: { table: string; id: string; updates: Partial<T> }): Promise<DatabaseResult<T>>;
+  delete(query: { table: string; id: string }): Promise<DatabaseResult<void>>;
   
   // Initialize/cleanup
   initialize(): Promise<void>;

@@ -84,7 +84,7 @@ export default function DocumentDetailScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        const a = window.document.createElement('a');
+        const a = (global as any).document.createElement('a');
         a.href = url;
         a.download = `${document.documentNumber}-${document.customerName}.txt`;
         a.click();

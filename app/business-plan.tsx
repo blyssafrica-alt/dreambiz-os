@@ -162,7 +162,7 @@ export default function BusinessPlanScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([plan], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        const a = window.document.createElement('a');
+        const a = (global as any).document.createElement('a');
         a.href = url;
         a.download = `${business?.name}-Business-Plan.txt`;
         a.click();

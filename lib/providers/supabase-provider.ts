@@ -100,7 +100,7 @@ export class SupabaseProvider implements IBackendProvider {
       if (result.error) {
         // Extract error message properly
         const errorMessage = result.error?.message || result.error?.toString() || 'Unknown error';
-        const errorCode = result.error?.code || '';
+        const errorCode = (result.error as any)?.code || '';
         
         // If it's a "not found" error (PGRST116), that's okay - profile doesn't exist yet
         if (errorCode === 'PGRST116' || errorMessage.includes('No rows returned')) {
@@ -111,8 +111,8 @@ export class SupabaseProvider implements IBackendProvider {
         // For other errors, throw with proper message
         const error = new Error(errorMessage);
         (error as any).code = errorCode;
-        (error as any).details = result.error?.details;
-        (error as any).hint = result.error?.hint;
+        (error as any).details = (result.error as any)?.details;
+        (error as any).hint = (result.error as any)?.hint;
         throw error;
       }
       
@@ -253,9 +253,9 @@ export class SupabaseProvider implements IBackendProvider {
     }
   }
 
-  async insert<T>(table: string, data: Omit<T, 'id' | 'created_at' | 'updated_at'>): Promise<DatabaseResult<T>> {
+  async insert<T>(query: { table: string; data: Omit<T, 'id' | 'created_at' | 'updated_at'> }): Promise<DatabaseResult<T>> {
     try {
-      const { data: result, error } = await supabase.from(table).insert(data).select().single();
+      const { data: result, error } = await supabase.from(query.table).insert(query.data).select().single();
 
       if (error) {
         return { data: null, error };
@@ -267,12 +267,12 @@ export class SupabaseProvider implements IBackendProvider {
     }
   }
 
-  async update<T>(table: string, id: string, updates: Partial<T>): Promise<DatabaseResult<T>> {
+  async update<T>(query: { table: string; id: string; updates: Partial<T> }): Promise<DatabaseResult<T>> {
     try {
       const { data, error } = await supabase
-        .from(table)
-        .update(updates)
-        .eq('id', id)
+        .from(query.table)
+        .update(query.updates)
+        .eq('id', query.id)
         .select()
         .single();
 
@@ -286,9 +286,9 @@ export class SupabaseProvider implements IBackendProvider {
     }
   }
 
-  async delete(table: string, id: string): Promise<DatabaseResult<void>> {
+  async delete(query: { table: string; id: string }): Promise<DatabaseResult<void>> {
     try {
-      const { error } = await supabase.from(table).delete().eq('id', id);
+      const { error } = await supabase.from(query.table).delete().eq('id', query.id);
 
       if (error) {
         return { data: null, error };
