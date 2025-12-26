@@ -14,6 +14,7 @@ ORDER BY au.created_at DESC;
 
 -- Now sync the missing user(s) to public.users
 -- This handles the case where user exists in auth but not in public table
+-- Check for both ID and email to prevent conflicts
 INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
 SELECT 
   au.id,
@@ -23,14 +24,8 @@ SELECT
   CASE WHEN au.email = 'nashiezw@gmail.com' THEN true ELSE false END as is_super_admin
 FROM auth.users au
 WHERE NOT EXISTS (
-  SELECT 1 FROM public.users u WHERE u.id = au.id
-)
-ON CONFLICT (id) DO UPDATE SET
-  email = EXCLUDED.email,
-  is_super_admin = CASE 
-    WHEN EXCLUDED.email = 'nashiezw@gmail.com' THEN true 
-    ELSE users.is_super_admin 
-  END;
+  SELECT 1 FROM public.users u WHERE u.id = au.id OR u.email = au.email
+);
 
 -- Update existing super admin if needed
 UPDATE public.users
