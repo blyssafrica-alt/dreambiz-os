@@ -50,6 +50,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create an RPC function that can be called from the client to sync a single user
 -- This allows the app to request profile creation for existing users
+-- Drop the old function first if it exists (in case return type changed)
+DROP FUNCTION IF EXISTS public.sync_user_profile(UUID);
+
 CREATE OR REPLACE FUNCTION public.sync_user_profile(user_id_param UUID)
 RETURNS JSONB AS $$
 DECLARE
