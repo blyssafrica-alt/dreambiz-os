@@ -1,6 +1,6 @@
 import { Stack, router } from 'expo-router';
 import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { DocumentType, DocumentItem, DocumentStatus } from '@/types/business';
+import { getDocumentTemplate } from '@/lib/document-templates';
 
 export default function DocumentsScreen() {
   const { business, documents, addDocument, updateDocument } = useBusiness();
@@ -26,6 +27,19 @@ export default function DocumentsScreen() {
   const [items, setItems] = useState<{ description: string; quantity: string; price: string }[]>([
     { description: '', quantity: '1', price: '' }
   ]);
+  const [templateFields, setTemplateFields] = useState<Record<string, string>>({});
+
+  // Get template for current document type and business type
+  const template = useMemo(() => {
+    if (!business) return null;
+    return getDocumentTemplate(docType, business.type);
+  }, [docType, business]);
+
+  // Reset template fields when document type changes
+  const handleDocTypeChange = (newType: DocumentType) => {
+    setDocType(newType);
+    setTemplateFields({});
+  };
 
   const addItem = () => {
     setItems([...items, { description: '', quantity: '1', price: '' }]);
@@ -63,6 +77,17 @@ export default function DocumentsScreen() {
 
     const subtotal = documentItems.reduce((sum, item) => sum + item.total, 0);
 
+    // Store template fields in notes as JSON
+    let notes = '';
+    if (template && Object.keys(templateFields).length > 0) {
+      const templateData = {
+        templateId: template.id,
+        templateName: template.name,
+        fields: templateFields,
+      };
+      notes = JSON.stringify(templateData);
+    }
+
     await addDocument({
       type: docType,
       customerName,
@@ -74,12 +99,14 @@ export default function DocumentsScreen() {
       date: new Date().toISOString().split('T')[0],
       dueDate: dueDate || undefined,
       status: 'draft',
+      notes: notes || undefined,
     });
 
     setCustomerName('');
     setCustomerPhone('');
     setDueDate('');
     setItems([{ description: '', quantity: '1', price: '' }]);
+    setTemplateFields({});
     setShowModal(false);
     RNAlert.alert('Success', `${getDocumentTypeLabel(docType)} created`);
   };
@@ -259,7 +286,7 @@ export default function DocumentsScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeSelector}>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'invoice' && styles.typeChipActive]}
-                    onPress={() => setDocType('invoice')}
+                    onPress={() => handleDocTypeChange('invoice')}
                   >
                     <Text style={[styles.typeChipText, docType === 'invoice' && styles.typeChipTextActive]}>
                       Invoice
@@ -267,7 +294,7 @@ export default function DocumentsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'receipt' && styles.typeChipActive]}
-                    onPress={() => setDocType('receipt')}
+                    onPress={() => handleDocTypeChange('receipt')}
                   >
                     <Text style={[styles.typeChipText, docType === 'receipt' && styles.typeChipTextActive]}>
                       Receipt
@@ -275,7 +302,7 @@ export default function DocumentsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'quotation' && styles.typeChipActive]}
-                    onPress={() => setDocType('quotation')}
+                    onPress={() => handleDocTypeChange('quotation')}
                   >
                     <Text style={[styles.typeChipText, docType === 'quotation' && styles.typeChipTextActive]}>
                       Quotation
@@ -283,7 +310,7 @@ export default function DocumentsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'purchase_order' && styles.typeChipActive]}
-                    onPress={() => setDocType('purchase_order')}
+                    onPress={() => handleDocTypeChange('purchase_order')}
                   >
                     <Text style={[styles.typeChipText, docType === 'purchase_order' && styles.typeChipTextActive]}>
                       Purchase Order
@@ -291,7 +318,7 @@ export default function DocumentsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'contract' && styles.typeChipActive]}
-                    onPress={() => setDocType('contract')}
+                    onPress={() => handleDocTypeChange('contract')}
                   >
                     <Text style={[styles.typeChipText, docType === 'contract' && styles.typeChipTextActive]}>
                       Contract
@@ -299,7 +326,7 @@ export default function DocumentsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'supplier_agreement' && styles.typeChipActive]}
-                    onPress={() => setDocType('supplier_agreement')}
+                    onPress={() => handleDocTypeChange('supplier_agreement')}
                   >
                     <Text style={[styles.typeChipText, docType === 'supplier_agreement' && styles.typeChipTextActive]}>
                       Supplier Agreement
@@ -337,6 +364,60 @@ export default function DocumentsScreen() {
                       value={dueDate}
                       onChangeText={setDueDate}
                     />
+                  </View>
+                )}
+
+                {/* Template-specific fields */}
+                {template && template.fields.length > 0 && (
+                  <View style={styles.templateSection}>
+                    <Text style={styles.templateSectionTitle}>
+                      {template.name} - Additional Fields
+                    </Text>
+                    {template.fields.map((field) => (
+                      <View key={field.id} style={styles.inputGroup}>
+                        <Text style={styles.label}>
+                          {field.label} {field.required && '*'}
+                        </Text>
+                        {field.type === 'select' && field.options ? (
+                          <View style={styles.selectContainer}>
+                            {field.options.map((option) => (
+                              <TouchableOpacity
+                                key={option}
+                                style={[
+                                  styles.selectOption,
+                                  templateFields[field.id] === option && styles.selectOptionActive,
+                                ]}
+                                onPress={() => setTemplateFields({ ...templateFields, [field.id]: option })}
+                              >
+                                <Text
+                                  style={[
+                                    styles.selectOptionText,
+                                    templateFields[field.id] === option && styles.selectOptionTextActive,
+                                  ]}
+                                >
+                                  {option}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        ) : field.type === 'date' ? (
+                          <TextInput
+                            style={styles.input}
+                            placeholder="YYYY-MM-DD"
+                            value={templateFields[field.id] || ''}
+                            onChangeText={(text) => setTemplateFields({ ...templateFields, [field.id]: text })}
+                          />
+                        ) : (
+                          <TextInput
+                            style={styles.input}
+                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                            value={templateFields[field.id] || ''}
+                            onChangeText={(text) => setTemplateFields({ ...templateFields, [field.id]: text })}
+                            keyboardType={field.type === 'number' ? 'decimal-pad' : 'default'}
+                          />
+                        )}
+                      </View>
+                    ))}
                   </View>
                 )}
 
@@ -665,6 +746,43 @@ const styles = StyleSheet.create({
   createButtonText: {
     fontSize: 16,
     fontWeight: '600' as const,
+    color: '#FFF',
+  },
+  templateSection: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  templateSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  selectContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  selectOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  selectOptionActive: {
+    backgroundColor: '#0066CC',
+    borderColor: '#0066CC',
+  },
+  selectOptionText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600' as const,
+  },
+  selectOptionTextActive: {
     color: '#FFF',
   },
 });
