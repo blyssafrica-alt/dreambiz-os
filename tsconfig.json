@@ -15,7 +15,7 @@
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "baseUrl": ".",
+    "baseUrl": null,
     "typeRoots": [
       "./node_modules/@types"
     ],
