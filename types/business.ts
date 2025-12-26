@@ -1,5 +1,14 @@
 export type Currency = 'USD' | 'ZWL';
 
+export type DreamBigBook = 
+  | 'start-your-business'
+  | 'grow-your-business'
+  | 'manage-your-money'
+  | 'hire-and-lead'
+  | 'marketing-mastery'
+  | 'scale-up'
+  | 'none';
+
 export type BusinessStage = 'idea' | 'running' | 'growing';
 
 export type BusinessType = 
@@ -24,6 +33,7 @@ export interface BusinessProfile {
   phone?: string;
   email?: string;
   address?: string;
+  dreamBigBook?: DreamBigBook;
 }
 
 export type TransactionType = 'sale' | 'expense';
@@ -39,7 +49,7 @@ export interface Transaction {
   createdAt: string;
 }
 
-export type DocumentType = 'invoice' | 'receipt' | 'quotation';
+export type DocumentType = 'invoice' | 'receipt' | 'quotation' | 'purchase_order' | 'contract' | 'supplier_agreement';
 export type DocumentStatus = 'draft' | 'sent' | 'paid' | 'cancelled';
 
 export interface Document {
@@ -187,6 +197,11 @@ export interface Alert {
   type: 'warning' | 'danger' | 'info';
   message: string;
   action?: string;
+  bookReference?: {
+    book: DreamBigBook;
+    chapter: number;
+    chapterTitle: string;
+  };
 }
 
 export interface Product {

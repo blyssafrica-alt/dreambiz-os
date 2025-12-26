@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { Product, Currency } from '@/types/business';
+import type { Product } from '@/types/business';
 
 const PRODUCT_CATEGORIES = [
   'Electronics',
@@ -420,7 +420,7 @@ export default function ProductsScreen() {
                           styles.categoryChip,
                           { 
                             backgroundColor: category === cat ? theme.accent.primary : theme.background.secondary,
-                            borderColor: category === cat ? theme.accent.primary : theme.border.color
+                            borderColor: category === cat ? theme.accent.primary : theme.border.light
                           }
                         ]}
                         onPress={() => setCategory(category === cat ? '' : cat)}

@@ -17,7 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBusiness } from '@/contexts/BusinessContext';
-import type { BusinessProfile, BusinessType, BusinessStage, Currency } from '@/types/business';
+import type { BusinessProfile, BusinessType, BusinessStage, Currency, DreamBigBook } from '@/types/business';
+import { DREAMBIG_BOOKS } from '@/constants/books';
 
 const businessTypes: { value: BusinessType; label: string }[] = [
   { value: 'retail', label: 'Retail Shop' },
@@ -40,6 +41,7 @@ const businessStages: { value: BusinessStage; label: string; desc: string }[] = 
 export default function OnboardingScreen() {
   const { saveBusiness } = useBusiness();
   const [step, setStep] = useState(1);
+  const totalSteps = 4;
   const [formData, setFormData] = useState({
     name: '',
     owner: '',
@@ -49,6 +51,7 @@ export default function OnboardingScreen() {
     capital: '',
     currency: 'USD' as Currency,
     phone: '',
+    dreamBigBook: 'none' as DreamBigBook,
   });
 
   const handleComplete = async () => {
@@ -69,6 +72,7 @@ export default function OnboardingScreen() {
       capital: parseFloat(formData.capital) || 0,
       currency: formData.currency,
       phone: formData.phone,
+      dreamBigBook: formData.dreamBigBook,
       createdAt: new Date().toISOString(),
     };
 
@@ -314,6 +318,67 @@ export default function OnboardingScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
+        <TouchableOpacity style={styles.nextButton} onPress={() => setStep(4)}>
+          <Text style={styles.nextButtonText}>Continue</Text>
+          <ChevronRight size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderStep4 = () => (
+    <View style={styles.stepContainer}>
+      <View style={[styles.iconContainer, { backgroundColor: '#EFF6FF' }]}>
+        <Building2 size={48} color="#0066CC" />
+      </View>
+      <Text style={styles.stepTitle}>Which DreamBig book do you have?</Text>
+      <Text style={styles.stepDesc}>
+        Your book unlocks specialized tools and guidance
+      </Text>
+
+      <View style={styles.booksContainer}>
+        {DREAMBIG_BOOKS.map((book) => {
+          const isSelected = formData.dreamBigBook === book.id;
+          return (
+            <TouchableOpacity
+              key={book.id}
+              style={[
+                styles.bookCard,
+                isSelected && styles.bookCardActive,
+                { borderColor: isSelected ? book.color : '#E2E8F0' },
+              ]}
+              onPress={() => setFormData({ ...formData, dreamBigBook: book.id })}
+            >
+              <View style={styles.bookHeader}>
+                <View>
+                  <Text style={[styles.bookTitle, { color: book.color }]}>{book.title}</Text>
+                  <Text style={styles.bookSubtitle}>{book.subtitle}</Text>
+                </View>
+                {isSelected && (
+                  <View style={[styles.bookCheckCircle, { backgroundColor: book.color }]} />
+                )}
+              </View>
+              <Text style={styles.bookDescription}>{book.description}</Text>
+              {book.unlocks.length > 0 && (
+                <View style={styles.bookUnlocks}>
+                  <Text style={styles.bookUnlocksTitle}>🔓 Unlocks:</Text>
+                  {book.unlocks.slice(0, 3).map((unlock, idx) => (
+                    <Text key={idx} style={styles.bookUnlockItem}>• {unlock}</Text>
+                  ))}
+                  {book.unlocks.length > 3 && (
+                    <Text style={styles.bookUnlockMore}>+{book.unlocks.length - 3} more...</Text>
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.buttonRow}>
+        <TouchableOpacity style={styles.backButton} onPress={() => setStep(3)}>
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.completeButton} onPress={handleComplete}>
           <Text style={styles.completeButtonText}>Complete Setup</Text>
           <ChevronRight size={20} color="#FFF" />
@@ -336,11 +401,14 @@ export default function OnboardingScreen() {
           <View style={[styles.progressDot, step >= 2 && styles.progressDotActive]} />
           <View style={[styles.progressLine, step >= 3 && styles.progressLineActive]} />
           <View style={[styles.progressDot, step >= 3 && styles.progressDotActive]} />
+          <View style={[styles.progressLine, step >= 4 && styles.progressLineActive]} />
+          <View style={[styles.progressDot, step >= 4 && styles.progressDotActive]} />
         </View>
 
         {step === 1 && renderStep1()}
         {step === 2 && renderStep2()}
         {step === 3 && renderStep3()}
+        {step === 4 && renderStep4()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -568,5 +636,66 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600' as const,
     color: '#FFF',
+  },
+  booksContainer: {
+    gap: 12,
+  },
+  bookCard: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+  },
+  bookCardActive: {
+    backgroundColor: '#F8FAFC',
+  },
+  bookHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+  },
+  bookSubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  bookDescription: {
+    fontSize: 14,
+    color: '#475569',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  bookCheckCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
+  bookUnlocks: {
+    backgroundColor: '#F1F5F9',
+    padding: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  bookUnlocksTitle: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#334155',
+    marginBottom: 4,
+  },
+  bookUnlockItem: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
+  },
+  bookUnlockMore: {
+    fontSize: 12,
+    color: '#64748B',
+    fontStyle: 'italic' as const,
+    marginTop: 2,
   },
 });
