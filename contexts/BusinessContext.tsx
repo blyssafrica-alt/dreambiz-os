@@ -119,85 +119,129 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       // This is required because business_profiles has a foreign key constraint on user_id
       // Note: If a database trigger is set up, the profile should be created automatically
       
+      // CRITICAL: Ensure user profile exists before creating business profile
+      // The foreign key constraint requires the user to exist in the users table
       if (!user && authUser) {
+        const provider = getProvider();
+        let profileExists = false;
+        
+        // Step 1: Try RPC function first (most reliable - uses SECURITY DEFINER)
         try {
-          const provider = getProvider();
+          const { data: rpcData, error: rpcError } = await supabase.rpc('sync_user_profile', { 
+            user_id_param: authUser.id 
+          });
           
-          // Try to call the RPC function to sync/create the user profile
-          // This function uses SECURITY DEFINER so it bypasses RLS
-          try {
-            const { data: rpcData, error: rpcError } = await supabase.rpc('sync_user_profile', { 
-              user_id_param: authUser.id 
-            });
-            
-            if (rpcData && (rpcData as any).success) {
-              console.log('✅ User profile synced via RPC:', (rpcData as any).message);
-            } else if (rpcError) {
-              console.log('⚠️ RPC sync failed (this is okay if trigger exists):', rpcError.message);
+          if (rpcData && (rpcData as any).success) {
+            console.log('✅ User profile synced via RPC:', (rpcData as any).message);
+            profileExists = true;
+            // Wait a moment for the insert to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          } else if (rpcError) {
+            const rpcErrorCode = (rpcError as any)?.code || '';
+            const rpcErrorMessage = rpcError?.message || String(rpcError);
+            // 406/42883 means function doesn't exist - that's okay, try other methods
+            if (rpcErrorCode !== '406' && rpcErrorCode !== '42883' && !rpcErrorMessage.includes('function')) {
+              console.log('⚠️ RPC sync had an issue:', rpcErrorMessage);
             }
-          } catch (rpcErr) {
-            console.log('⚠️ RPC function not available (this is okay if trigger exists):', rpcErr);
           }
-          
-          // Try to get or create the profile
-          let profile = await provider.getUserProfile(authUser.id);
-          
-          if (!profile) {
-            // Try to create it
-            try {
-              profile = await provider.createUserProfile(authUser.id, {
-                email: authUser.email,
-                name: authUser.metadata?.name || authUser.email.split('@')[0] || 'User',
-                isSuperAdmin: false,
-              });
-              console.log('✅ User profile created successfully');
-            } catch (createError: any) {
-              // Extract error details
-              const createErrorMessage = createError?.message || String(createError);
-              const createErrorCode = createError?.code || '';
-              
-              // If it's a duplicate key error, profile exists - this is fine
-              if (createErrorMessage.includes('duplicate key') || 
-                  createErrorMessage.includes('already exists') ||
-                  createErrorCode === '23505' ||
-                  createErrorMessage.includes('users_email_key') ||
-                  createErrorMessage.includes('users_pkey')) {
-                console.log('✅ Profile already exists (duplicate key detected)');
-                // Profile exists, proceed
-              } else if (createErrorMessage.includes('RLS') || 
-                         createErrorMessage.includes('row-level security') ||
-                         createErrorCode === '42501') {
-                console.log('⚠️ RLS prevents profile creation - relying on trigger');
-                // RLS blocks creation, but trigger should have created it
-                // Proceed and let foreign key constraint catch real issues
-              } else {
-                // Other error - log but proceed anyway
-                // Foreign key constraint will catch if profile truly doesn't exist
-                console.warn('⚠️ Profile creation failed:', createErrorMessage);
-                console.warn('Proceeding anyway - foreign key constraint will validate');
+        } catch (rpcErr) {
+          // RPC might not be available - that's okay, try other methods
+        }
+        
+        // Step 2: Try to read the profile (to verify it exists)
+        if (!profileExists) {
+          try {
+            const profile = await provider.getUserProfile(authUser.id);
+            if (profile) {
+              console.log('✅ User profile found');
+              profileExists = true;
+            }
+          } catch (readError) {
+            // Can't read - might not exist or RLS blocking
+          }
+        }
+        
+        // Step 3: If still not found, try to create it
+        if (!profileExists) {
+          try {
+            const profile = await provider.createUserProfile(authUser.id, {
+              email: authUser.email,
+              name: authUser.metadata?.name || authUser.email.split('@')[0] || 'User',
+              isSuperAdmin: false,
+            });
+            console.log('✅ User profile created successfully');
+            profileExists = true;
+          } catch (createError: any) {
+            const createErrorMessage = createError?.message || String(createError);
+            const createErrorCode = (createError as any)?.code || '';
+            
+            // Duplicate key means profile EXISTS - that's success!
+            if (createErrorMessage.includes('duplicate key') || 
+                createErrorMessage.includes('already exists') ||
+                createErrorCode === '23505' ||
+                createErrorMessage.includes('users_email_key') ||
+                createErrorMessage.includes('users_pkey')) {
+              console.log('✅ Profile already exists (duplicate key detected)');
+              profileExists = true;
+            } else if (createErrorMessage.includes('RLS') || 
+                       createErrorMessage.includes('row-level security') ||
+                       createErrorCode === '42501') {
+              // RLS blocks creation - wait for trigger/RPC, then verify
+              console.log('⚠️ RLS prevents creation - waiting for trigger/RPC...');
+              for (let i = 0; i < 3; i++) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const checkProfile = await provider.getUserProfile(authUser.id);
+                if (checkProfile) {
+                  console.log('✅ Profile created by trigger/RPC');
+                  profileExists = true;
+                  break;
+                }
               }
             }
-          } else {
-            console.log('✅ User profile already exists');
           }
-        } catch (outerError: any) {
-          // Extract error message properly
-          const errorMsg = outerError?.message || String(outerError);
-          const errorCode = outerError?.code || '';
-          
-          // Check if it's a duplicate key or RLS error - these are okay
-          if (errorMsg.includes('duplicate key') || 
-              errorMsg.includes('already exists') ||
-              errorCode === '23505' ||
-              errorMsg.includes('RLS') ||
-              errorMsg.includes('row-level security') ||
-              errorCode === '42501') {
-            console.log('✅ Profile exists or RLS active - proceeding');
-            // Proceed - profile likely exists
-          } else {
-            console.warn('⚠️ Profile verification warning:', errorMsg);
-            console.warn('Proceeding anyway - foreign key constraint will validate');
+        }
+        
+        // Step 4: Final verification - check directly in database
+        if (!profileExists) {
+          try {
+            const { data: directCheck, error: directError } = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', authUser.id)
+              .single();
+            
+            if (directCheck && !directError) {
+              console.log('✅ Profile exists in database (verified directly)');
+              profileExists = true;
+            } else {
+              // Profile truly doesn't exist - we cannot proceed
+              throw new Error(
+                'User profile does not exist in database and could not be created.\n\n' +
+                'SOLUTION:\n' +
+                '1. Run the SQL in database/create_user_profile_trigger.sql in Supabase SQL Editor\n' +
+                '2. Then run: SELECT public.sync_user_profile(\'' + authUser.id + '\'::UUID);\n' +
+                '3. Or run: SELECT public.sync_existing_users();'
+              );
+            }
+          } catch (verifyError: any) {
+            const verifyMsg = verifyError?.message || String(verifyError);
+            // If it's a "not found" error, profile doesn't exist
+            if (verifyMsg.includes('PGRST116') || verifyMsg.includes('No rows returned') || verifyMsg.includes('does not exist')) {
+              throw new Error(
+                'User profile does not exist in database and could not be created.\n\n' +
+                'SOLUTION:\n' +
+                '1. Run the SQL in database/create_user_profile_trigger.sql in Supabase SQL Editor\n' +
+                '2. Then run: SELECT public.sync_user_profile(\'' + authUser.id + '\'::UUID);\n' +
+                '3. Or run: SELECT public.sync_existing_users();'
+              );
+            }
+            // Re-throw other errors
+            throw verifyError;
           }
+        }
+        
+        if (!profileExists) {
+          throw new Error('User profile verification failed. Please ensure the database trigger is set up.');
         }
       }
       
