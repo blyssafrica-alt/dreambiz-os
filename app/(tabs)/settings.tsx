@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { DollarSign, Building2, MapPin, Phone, Save, FileText, Moon, Sun, LogOut } from 'lucide-react-native';
+import { DollarSign, Building2, MapPin, Phone, Save, FileText, Moon, Sun, LogOut, Download, Database } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -15,9 +15,25 @@ import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Currency } from '@/types/business';
+import { exportAllData, shareData } from '@/lib/data-export';
 
 export default function SettingsScreen() {
-  const { business, saveBusiness, exchangeRate, updateExchangeRate } = useBusiness();
+  const { 
+    business, 
+    saveBusiness, 
+    exchangeRate, 
+    updateExchangeRate,
+    transactions,
+    documents,
+    products,
+    customers,
+    suppliers,
+    budgets,
+    cashflowProjections,
+    taxRates,
+    employees,
+    projects,
+  } = useBusiness();
   const { theme, isDark, toggleTheme } = useTheme();
   const { signOut, user } = useAuth();
   const [name, setName] = useState(business?.name || '');
@@ -95,6 +111,44 @@ export default function SettingsScreen() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleExportData = async (format: 'csv' | 'json') => {
+    try {
+      const data = exportAllData({
+        transactions,
+        documents,
+        products,
+        customers,
+        suppliers,
+        budgets,
+        cashflowProjections,
+        taxRates,
+        employees,
+        projects,
+        business,
+      }, {
+        format,
+        includeTransactions: true,
+        includeDocuments: true,
+        includeProducts: true,
+        includeCustomers: true,
+        includeSuppliers: true,
+        includeBudgets: true,
+        includeCashflow: true,
+        includeTaxRates: true,
+        includeEmployees: true,
+        includeProjects: true,
+      });
+
+      const filename = `dreambig-export-${new Date().toISOString().split('T')[0]}.${format}`;
+      const mimeType = format === 'csv' ? 'text/csv' : 'application/json';
+      
+      await shareData(data, filename, mimeType);
+      RNAlert.alert('Success', `Data exported successfully as ${format.toUpperCase()}`);
+    } catch (error: any) {
+      RNAlert.alert('Error', error.message || 'Failed to export data');
+    }
   };
 
   return (
@@ -394,6 +448,49 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={[styles.section, { 
+          backgroundColor: theme.background.card,
+          borderColor: theme.border.light,
+        }]}>
+          <View style={styles.sectionHeader}>
+            <Database size={20} color={theme.accent.primary} />
+            <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>
+              Data Export
+            </Text>
+          </View>
+
+          <Text style={[styles.settingDesc, { color: theme.text.secondary, marginBottom: 16 }]}>
+            Export all your business data for backup or analysis
+          </Text>
+
+          <View style={styles.exportButtons}>
+            <TouchableOpacity 
+              style={[styles.exportButton, { 
+                backgroundColor: theme.background.secondary,
+                borderColor: theme.border.light,
+              }]}
+              onPress={() => handleExportData('csv')}
+            >
+              <Download size={20} color={theme.accent.primary} />
+              <Text style={[styles.exportButtonText, { color: theme.text.primary }]}>
+                Export CSV
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.exportButton, { 
+                backgroundColor: theme.background.secondary,
+                borderColor: theme.border.light,
+              }]}
+              onPress={() => handleExportData('json')}
+            >
+              <Download size={20} color={theme.accent.primary} />
+              <Text style={[styles.exportButtonText, { color: theme.text.primary }]}>
+                Export JSON
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <TouchableOpacity
           style={[styles.signOutButton, { 
             backgroundColor: theme.surface.danger,
@@ -643,5 +740,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 6,
     lineHeight: 20,
+  },
+  exportButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  exportButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  exportButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
   },
 });

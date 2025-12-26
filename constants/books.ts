@@ -107,7 +107,7 @@ export const getVisibleTabs = (userBook: DreamBigBook | undefined): string[] => 
       additionalTabs.push('products', 'customers', 'suppliers', 'reports', 'projects');
       break;
     case 'manage-your-money':
-      additionalTabs.push('reports', 'budgets', 'cashflow', 'tax');
+      additionalTabs.push('reports', 'budgets', 'cashflow', 'tax', 'accounts');
       break;
     case 'hire-and-lead':
       additionalTabs.push('employees', 'projects', 'reports');
@@ -116,7 +116,7 @@ export const getVisibleTabs = (userBook: DreamBigBook | undefined): string[] => 
       additionalTabs.push('customers', 'products', 'reports', 'projects');
       break;
     case 'scale-up':
-      additionalTabs.push('products', 'customers', 'suppliers', 'employees', 'projects', 'reports', 'budgets', 'cashflow', 'tax');
+      additionalTabs.push('products', 'customers', 'suppliers', 'employees', 'projects', 'reports', 'budgets', 'cashflow', 'tax', 'accounts');
       break;
   }
   
