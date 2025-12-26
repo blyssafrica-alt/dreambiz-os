@@ -30,7 +30,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Alert } from '@/types/business';
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { LineChart, PieChart, BarChart } from '@/components/Charts';
 import GlobalSearch from '@/components/GlobalSearch';
 
@@ -82,6 +82,11 @@ export default function DashboardScreen() {
     return 'Needs Attention';
   };
 
+  const formatCurrency = useCallback((amount: number) => {
+    const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
+    return `${symbol}${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  }, [business?.currency]);
+
   // Recent activity (last 5 transactions and documents)
   const recentActivity = useMemo(() => {
     const recentTransactions = transactions
@@ -111,12 +116,7 @@ export default function DashboardScreen() {
     return [...recentTransactions, ...recentDocuments]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
-  }, [transactions, documents, theme]);
-
-  const formatCurrency = (amount: number) => {
-    const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
-    return `${symbol}${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-  };
+  }, [transactions, documents, theme, formatCurrency]);
 
   // Prepare chart data
   const chartData = useMemo(() => {
@@ -209,11 +209,6 @@ export default function DashboardScreen() {
       }),
     ]).start();
   }, [fadeAnim, slideAnim]);
-
-  const formatCurrency = (amount: number) => {
-    const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
-    return `${symbol}${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-  };
 
   const renderAlert = (alert: Alert) => {
     const colors = {
