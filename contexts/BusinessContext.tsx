@@ -631,7 +631,29 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
 
     try {
       const count = documents.filter(d => d.type === document.type).length + 1;
-      const prefix = document.type === 'invoice' ? 'INV' : document.type === 'receipt' ? 'REC' : 'QUO';
+      let prefix = 'DOC';
+      switch (document.type) {
+        case 'invoice':
+          prefix = 'INV';
+          break;
+        case 'receipt':
+          prefix = 'REC';
+          break;
+        case 'quotation':
+          prefix = 'QUO';
+          break;
+        case 'purchase_order':
+          prefix = 'PO';
+          break;
+        case 'contract':
+          prefix = 'CTR';
+          break;
+        case 'supplier_agreement':
+          prefix = 'SUP';
+          break;
+        default:
+          prefix = 'DOC';
+      }
       const documentNumber = `${prefix}-${String(count).padStart(4, '0')}`;
 
       const { data, error } = await supabase

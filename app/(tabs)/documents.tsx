@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send } from 'lucide-react-native';
+import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   View,
@@ -81,7 +81,7 @@ export default function DocumentsScreen() {
     setDueDate('');
     setItems([{ description: '', quantity: '1', price: '' }]);
     setShowModal(false);
-    RNAlert.alert('Success', `${docType.charAt(0).toUpperCase() + docType.slice(1)} created`);
+    RNAlert.alert('Success', `${getDocumentTypeLabel(docType)} created`);
   };
 
   const formatCurrency = (amount: number) => {
@@ -102,6 +102,43 @@ export default function DocumentsScreen() {
         return <Receipt size={20} color="#10B981" />;
       case 'quotation':
         return <FileCheck size={20} color="#F59E0B" />;
+      case 'purchase_order':
+        return <ShoppingCart size={20} color="#8B5CF6" />;
+      case 'contract':
+        return <FileSignature size={20} color="#EC4899" />;
+      case 'supplier_agreement':
+        return <Handshake size={20} color="#6366F1" />;
+      default:
+        return <FileText size={20} color="#64748B" />;
+    }
+  };
+
+  const getDocumentTypeLabel = (type: DocumentType) => {
+    switch (type) {
+      case 'invoice':
+        return 'Invoice';
+      case 'receipt':
+        return 'Receipt';
+      case 'quotation':
+        return 'Quotation';
+      case 'purchase_order':
+        return 'Purchase Order';
+      case 'contract':
+        return 'Contract';
+      case 'supplier_agreement':
+        return 'Supplier Agreement';
+      default:
+        return 'Document';
+    }
+  };
+
+  const getCustomerLabel = (type: DocumentType) => {
+    switch (type) {
+      case 'purchase_order':
+      case 'supplier_agreement':
+        return 'Supplier Name *';
+      default:
+        return 'Customer Name *';
     }
   };
 
@@ -166,7 +203,7 @@ export default function DocumentsScreen() {
             <View style={styles.emptyState}>
               <FileText size={48} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>No documents yet</Text>
-              <Text style={styles.emptyDesc}>Create professional invoices and receipts</Text>
+              <Text style={styles.emptyDesc}>Create professional invoices, receipts, quotations, purchase orders, contracts, and supplier agreements</Text>
             </View>
           ) : (
             documents.map((doc) => {
@@ -219,7 +256,7 @@ export default function DocumentsScreen() {
               <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Create Document</Text>
 
-                <View style={styles.typeSelector}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeSelector}>
                   <TouchableOpacity
                     style={[styles.typeChip, docType === 'invoice' && styles.typeChipActive]}
                     onPress={() => setDocType('invoice')}
@@ -244,20 +281,44 @@ export default function DocumentsScreen() {
                       Quotation
                     </Text>
                   </TouchableOpacity>
-                </View>
+                  <TouchableOpacity
+                    style={[styles.typeChip, docType === 'purchase_order' && styles.typeChipActive]}
+                    onPress={() => setDocType('purchase_order')}
+                  >
+                    <Text style={[styles.typeChipText, docType === 'purchase_order' && styles.typeChipTextActive]}>
+                      Purchase Order
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.typeChip, docType === 'contract' && styles.typeChipActive]}
+                    onPress={() => setDocType('contract')}
+                  >
+                    <Text style={[styles.typeChipText, docType === 'contract' && styles.typeChipTextActive]}>
+                      Contract
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.typeChip, docType === 'supplier_agreement' && styles.typeChipActive]}
+                    onPress={() => setDocType('supplier_agreement')}
+                  >
+                    <Text style={[styles.typeChipText, docType === 'supplier_agreement' && styles.typeChipTextActive]}>
+                      Supplier Agreement
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Customer Name *</Text>
+                  <Text style={styles.label}>{getCustomerLabel(docType)}</Text>
                   <TextInput
                     style={styles.input}
-                    placeholder="Enter customer name"
+                    placeholder={docType === 'purchase_order' || docType === 'supplier_agreement' ? 'Enter supplier name' : 'Enter customer name'}
                     value={customerName}
                     onChangeText={setCustomerName}
                   />
                 </View>
 
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Customer Phone</Text>
+                  <Text style={styles.label}>{docType === 'purchase_order' || docType === 'supplier_agreement' ? 'Supplier Phone' : 'Customer Phone'}</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="+263..."
@@ -266,6 +327,18 @@ export default function DocumentsScreen() {
                     onChangeText={setCustomerPhone}
                   />
                 </View>
+
+                {(docType === 'invoice' || docType === 'purchase_order') && (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Due Date</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="YYYY-MM-DD"
+                      value={dueDate}
+                      onChangeText={setDueDate}
+                    />
+                  </View>
+                )}
 
                 <Text style={styles.itemsTitle}>Items</Text>
                 {items.map((item, index) => (
@@ -454,6 +527,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginBottom: 24,
+    marginHorizontal: -24,
+    paddingHorizontal: 24,
   },
   typeChip: {
     paddingHorizontal: 16,
