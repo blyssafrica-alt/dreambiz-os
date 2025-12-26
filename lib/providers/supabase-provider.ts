@@ -217,10 +217,13 @@ export class SupabaseProvider implements IBackendProvider {
           }
         }
         
-        // If still not found, the profile exists but RLS prevents us from seeing it
-        // This is okay - the profile exists in DB, foreign key will be satisfied
-        // Return a mock profile so the app can proceed
-        console.warn('⚠️ Profile exists (duplicate key) but RLS prevents access. Proceeding with business creation...');
+        // If still not found after duplicate key error, the profile exists in DB
+        // but RLS prevents us from reading it. This is okay - foreign key will be satisfied.
+        // However, we should verify it exists by trying to create business profile
+        // For now, throw an error to force proper setup
+        console.warn('⚠️ Profile exists (duplicate key) but RLS prevents access. Profile should exist in database.');
+        // Return a profile object - the duplicate key error confirms it exists in DB
+        // The foreign key constraint should be satisfied
         return {
           id: userId,
           email: profile.email,
@@ -230,15 +233,31 @@ export class SupabaseProvider implements IBackendProvider {
         };
       }
       
-      // Handle RLS errors - wait for trigger/RPC to create it
+      // Handle RLS errors - try RPC function more aggressively, then wait for trigger
       if (errorMessage.includes('row-level security') || 
           errorMessage.includes('RLS') || 
           errorCode === '42501') {
         
-        // RLS blocked creation - wait for trigger/RPC to create it
-        // Wait longer and retry multiple times
-        for (let i = 0; i < 3; i++) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+        // RLS blocked direct insert - try RPC function which uses SECURITY DEFINER
+        console.log('RLS blocked creation, trying RPC function...');
+        try {
+          const { error: rpcError2 } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
+          if (!rpcError2) {
+            // RPC succeeded, wait and check
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            existing = await this.getUserProfile(userId);
+            if (existing) {
+              console.log('✅ User profile created via RPC function');
+              return existing;
+            }
+          }
+        } catch (rpcErr2: any) {
+          // RPC might not be available - that's okay, wait for trigger
+        }
+        
+        // Wait for trigger/RPC to create it - retry multiple times with longer delays
+        for (let i = 0; i < 5; i++) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
           existing = await this.getUserProfile(userId);
           if (existing) {
             console.log('✅ User profile created by trigger/RPC after RLS error');
@@ -247,16 +266,8 @@ export class SupabaseProvider implements IBackendProvider {
         }
         
         // Still not found after waiting - trigger might not be set up
-        // For now, return a mock profile so the app can proceed
-        // The trigger should be set up, but we don't want to block the user
-        console.warn('⚠️ RLS blocked creation and trigger did not create profile. Using temporary profile - please set up database trigger.');
-        return {
-          id: userId,
-          email: profile.email,
-          name: profile.name,
-          createdAt: new Date().toISOString(),
-          isSuperAdmin: false,
-        };
+        // We CANNOT return a mock profile - it must exist in DB for foreign key
+        throw new Error('User profile could not be created due to RLS restrictions. Please ensure the database trigger is configured. Run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor.');
       }
       
       // For other errors, throw with enhanced message

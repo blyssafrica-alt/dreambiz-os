@@ -120,6 +120,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
             // Note: If a database trigger is set up, the profile should be created automatically
             if (!user && authUser) {
               let profileExists = false; // Track if we know the profile exists (even if we can't read it)
+              let profileExistsButUnreadable = false; // Track if profile exists but RLS prevents reading it
         
         try {
           const provider = getProvider();
@@ -129,9 +130,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           
           if (!profile) {
             // Profile doesn't exist, try to create it
-            // If a database trigger is set up, this might fail with RLS but trigger will create it
-            // Profile doesn't exist, try to create it
-            // createUserProfile now handles RLS gracefully and returns a mock profile if needed
+            // createUserProfile will throw if it can't actually create the profile in DB
             try {
               profile = await provider.createUserProfile(authUser.id, {
                 email: authUser.email,
@@ -140,10 +139,27 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
               });
               profileExists = true;
             } catch (createError: any) {
-              // createUserProfile should not throw for RLS/duplicate errors anymore
-              // But if it does, assume profile exists or will be created by trigger
-              // Assume profile exists or will be created by trigger - proceed with business creation
-              profileExistsButUnreadable = true;
+              // Extract error message
+              const createErrorMessage = createError?.message || (typeof createError === 'string' ? createError : JSON.stringify(createError));
+              const createErrorCode = (createError as any)?.code || '';
+              
+              // If it's a duplicate key error, the profile EXISTS in database
+              if (createErrorMessage.includes('duplicate key') || 
+                  createErrorMessage.includes('duplicate') || 
+                  createErrorMessage.includes('already exists') ||
+                  createErrorCode === '23505' ||
+                  createErrorMessage.includes('users_email_key') ||
+                  createErrorMessage.includes('users_pkey')) {
+                // Profile exists in DB - foreign key will be satisfied
+                // But we might not be able to read it due to RLS
+                profileExists = true;
+                profileExistsButUnreadable = true;
+                console.log('✅ Profile exists (duplicate key) - proceeding with business creation');
+              } else {
+                // For RLS errors, we need the trigger to be set up
+                // Don't proceed - the profile must exist in DB
+                throw new Error(`Cannot create user profile: ${createErrorMessage}. Please ensure the database trigger is set up (see database/create_user_profile_trigger.sql)`);
+              }
             }
           } else {
             console.log('✅ User profile already exists');
@@ -189,14 +205,34 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         
         // If we know the profile exists (even if we can't read it), we can proceed
         // The foreign key constraint will be satisfied
-        if (!profileExists) {
-          throw new Error('User profile is required but could not be created or verified');
+        if (!profileExists && !profileExistsButUnreadable) {
+          throw new Error('User profile is required but could not be created or verified. Please ensure the database trigger is set up (see database/create_user_profile_trigger.sql)');
         }
       }
       
       // Verify user_id exists before proceeding
-      if (!user && !authUser) {
+      if (!userId) {
         throw new Error('User authentication required to save business profile');
+      }
+      
+      // Final check: Try to verify the user exists in the database by attempting a simple query
+      // This helps catch cases where the profile doesn't actually exist despite duplicate key errors
+      try {
+        const provider = getProvider();
+        const verifyProfile = await provider.getUserProfile(userId);
+        if (!verifyProfile && !profileExistsButUnreadable) {
+          // Profile doesn't exist and we can't create it - must set up trigger
+          throw new Error('User profile does not exist in database. Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor, then run: SELECT public.sync_existing_users();');
+        }
+      } catch (verifyError: any) {
+        // If it's just a "not found" error and we got a duplicate key earlier, that's okay
+        // The duplicate key confirms the profile exists in DB
+        if (!profileExistsButUnreadable && !profileExists) {
+          const verifyMsg = verifyError?.message || String(verifyError);
+          if (!verifyMsg.includes('PGRST116') && !verifyMsg.includes('No rows returned')) {
+            throw new Error(`Cannot verify user profile: ${verifyMsg}. Please ensure the database trigger is set up.`);
+          }
+        }
       }
 
       // Prepare the data object - only include id if it's a valid UUID
