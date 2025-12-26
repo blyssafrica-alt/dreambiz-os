@@ -135,7 +135,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
             try {
               profile = await provider.createUserProfile(authUser.id, {
                 email: authUser.email,
-                name: authUser.metadata?.name || authUser.name || 'User',
+                name: authUser.metadata?.name || authUser.email.split('@')[0] || 'User',
                 isSuperAdmin: false,
               });
               profileExists = true;
