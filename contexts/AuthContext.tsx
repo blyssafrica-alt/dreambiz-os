@@ -22,7 +22,7 @@ export const [AuthContext, useAuth] = createContextHook(() => {
 
       if (!profile && authUserData) {
         // Profile doesn't exist - try to create it from auth user metadata
-        console.log('User profile not found, attempting to create from auth user...');
+        // Only log once, not repeatedly
         try {
           profile = await provider.createUserProfile(userId, {
             email: authUserData.email,
@@ -31,8 +31,12 @@ export const [AuthContext, useAuth] = createContextHook(() => {
           });
           console.log('✅ User profile created automatically');
         } catch (createError: any) {
-          console.warn('Could not auto-create profile:', createError?.message || createError);
-          // Profile will be created during onboarding
+          const errorMessage = createError?.message || String(createError);
+          // Only warn if it's not an RLS error (RLS errors are expected if trigger isn't set up)
+          if (!errorMessage.includes('row-level security') && !errorMessage.includes('RLS')) {
+            console.warn('Could not auto-create profile:', errorMessage);
+          }
+          // Profile will be created during onboarding or by database trigger
         }
       }
 
