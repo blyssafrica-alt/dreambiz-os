@@ -147,21 +147,32 @@ export class SupabaseProvider implements IBackendProvider {
     // This function uses SECURITY DEFINER so it can bypass RLS
     try {
       console.log('Attempting to sync user profile via RPC function...');
-      const { error: rpcError } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
+      const { error: rpcError, data: rpcData } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
       
-      if (!rpcError) {
-        // Wait a moment for the function to complete
+      // 406 error means the function doesn't exist or parameter mismatch - that's okay, we'll try other methods
+      if (rpcError) {
+        const rpcErrorCode = (rpcError as any)?.code || '';
+        const rpcErrorMessage = rpcError?.message || String(rpcError);
+        
+        // 406 = Not Acceptable (function might not exist), 42883 = function doesn't exist
+        if (rpcErrorCode === '42883' || rpcErrorCode === 'P0001' || rpcErrorMessage.includes('function') || rpcErrorMessage.includes('does not exist')) {
+          console.log('RPC function not available (needs to be set up in database)');
+        } else {
+          console.log('RPC function call failed:', rpcErrorMessage);
+        }
+      } else {
+        // RPC succeeded, wait a moment and check if profile was created
         await new Promise(resolve => setTimeout(resolve, 500));
         existing = await this.getUserProfile(userId);
         if (existing) {
           console.log('✅ User profile synced via RPC function');
           return existing;
         }
-      } else {
-        console.log('RPC function not available or failed:', rpcError.message);
       }
     } catch (rpcErr: any) {
-      console.log('RPC function not available:', rpcErr.message);
+      // RPC function might not exist - that's okay, we'll try other methods
+      const rpcErrMessage = rpcErr?.message || String(rpcErr);
+      console.log('RPC function not available:', rpcErrMessage);
       // Continue to try direct insert
     }
 

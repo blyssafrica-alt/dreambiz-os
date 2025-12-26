@@ -179,22 +179,22 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
             errorMessage = profileError;
           } else if (profileError?.message) {
             errorMessage = profileError.message;
-          } else if (profileError?.toString) {
+          } else if (profileError?.toString && typeof profileError.toString === 'function') {
             errorMessage = profileError.toString();
           } else {
             try {
-              errorMessage = JSON.stringify(profileError);
+              errorMessage = JSON.stringify(profileError, null, 2);
             } catch {
-              errorMessage = 'Unknown error occurred';
+              errorMessage = 'Unknown error occurred while creating user profile';
             }
           }
           
-          console.error('Failed to ensure user profile exists:', {
-            message: errorMessage,
-            code: profileError?.code,
-            details: profileError?.details,
-            fullError: profileError,
-          });
+          // Log with proper stringification
+          const errorCode = profileError?.code || '';
+          const errorDetails = profileError?.details || '';
+          console.error('Failed to ensure user profile exists:', errorMessage);
+          if (errorCode) console.error('Error code:', errorCode);
+          if (errorDetails) console.error('Error details:', errorDetails);
           
           throw new Error(`Cannot save business profile: ${errorMessage}`);
         }
@@ -211,16 +211,16 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       
       const upsertData: any = {
         user_id: userId,
-        name: newBusiness.name,
-        type: newBusiness.type,
-        stage: newBusiness.stage,
-        location: newBusiness.location,
-        capital: newBusiness.capital,
-        currency: newBusiness.currency,
-        owner: newBusiness.owner,
-        phone: newBusiness.phone || null,
-        email: newBusiness.email || null,
-        address: newBusiness.address || null,
+          name: newBusiness.name,
+          type: newBusiness.type,
+          stage: newBusiness.stage,
+          location: newBusiness.location,
+          capital: newBusiness.capital,
+          currency: newBusiness.currency,
+          owner: newBusiness.owner,
+          phone: newBusiness.phone || null,
+          email: newBusiness.email || null,
+          address: newBusiness.address || null,
       };
 
       // Only include id if we have an existing business with a valid UUID
@@ -244,13 +244,11 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         const errorDetails = (error as any)?.details || '';
         const errorHint = (error as any)?.hint || '';
         
-        console.error('Failed to save business:', {
-          message: errorMessage,
-          code: errorCode,
-          details: errorDetails,
-          hint: errorHint,
-          fullError: error,
-        });
+        // Log with proper stringification (avoid [object Object])
+        console.error('Failed to save business:', errorMessage);
+        if (errorCode) console.error('Error code:', errorCode);
+        if (errorDetails) console.error('Error details:', errorDetails);
+        if (errorHint) console.error('Error hint:', errorHint);
         
         // Create a more descriptive error
         const enhancedError = new Error(errorMessage);
@@ -285,14 +283,14 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         errorMessage = error;
       } else if (error?.message) {
         errorMessage = error.message;
-      } else if (error?.toString) {
+      } else if (error?.toString && typeof error.toString === 'function') {
         errorMessage = error.toString();
       } else {
         // Try to stringify, but handle circular references
         try {
-          errorMessage = JSON.stringify(error);
+          errorMessage = JSON.stringify(error, null, 2);
         } catch {
-          errorMessage = 'Unknown error occurred';
+          errorMessage = 'Unknown error occurred while saving business profile';
         }
       }
       
@@ -300,13 +298,11 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       const errorDetails = error?.details || '';
       const errorHint = error?.hint || '';
       
-      console.error('Failed to save business:', {
-        message: errorMessage,
-        code: errorCode,
-        details: errorDetails,
-        hint: errorHint,
-        fullError: error,
-      });
+      // Log with proper stringification (avoid [object Object])
+      console.error('Failed to save business:', errorMessage);
+      if (errorCode) console.error('Error code:', errorCode);
+      if (errorDetails) console.error('Error details:', errorDetails);
+      if (errorHint) console.error('Error hint:', errorHint);
       
       // Create enhanced error with all details
       const enhancedError = new Error(errorMessage);
