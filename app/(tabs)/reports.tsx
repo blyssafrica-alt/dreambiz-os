@@ -415,6 +415,104 @@ export default function ReportsScreen() {
           )}
         </View>
 
+        {/* Balance Sheet */}
+        <View style={[styles.card, { backgroundColor: theme.background.card }]}>
+          <Text style={[styles.cardTitle, { color: theme.text.primary }]}>Balance Sheet</Text>
+          <View style={styles.balanceSheetSection}>
+            <Text style={[styles.balanceSheetSectionTitle, { color: theme.text.secondary }]}>Assets</Text>
+            <View style={styles.balanceSheetRow}>
+              <Text style={[styles.balanceSheetLabel, { color: theme.text.tertiary }]}>Cash & Bank</Text>
+              <Text style={[styles.balanceSheetValue, { color: theme.text.primary }]}>
+                {formatCurrency(reportData.totalSales - reportData.totalExpenses)}
+              </Text>
+            </View>
+            <View style={styles.balanceSheetRow}>
+              <Text style={[styles.balanceSheetLabel, { color: theme.text.tertiary }]}>Accounts Receivable</Text>
+              <Text style={[styles.balanceSheetValue, { color: theme.text.primary }]}>
+                {formatCurrency(reportData.outstanding)}
+              </Text>
+            </View>
+            <View style={[styles.balanceSheetTotal, { borderTopColor: theme.background.secondary }]}>
+              <Text style={[styles.balanceSheetTotalLabel, { color: theme.text.primary }]}>Total Assets</Text>
+              <Text style={[styles.balanceSheetTotalValue, { color: theme.accent.primary }]}>
+                {formatCurrency(reportData.totalSales - reportData.totalExpenses + reportData.outstanding)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.balanceSheetSection}>
+            <Text style={[styles.balanceSheetSectionTitle, { color: theme.text.secondary }]}>Liabilities</Text>
+            <View style={styles.balanceSheetRow}>
+              <Text style={[styles.balanceSheetLabel, { color: theme.text.tertiary }]}>Accounts Payable</Text>
+              <Text style={[styles.balanceSheetValue, { color: theme.text.primary }]}>
+                {formatCurrency(0)}
+              </Text>
+            </View>
+            <View style={[styles.balanceSheetTotal, { borderTopColor: theme.background.secondary }]}>
+              <Text style={[styles.balanceSheetTotalLabel, { color: theme.text.primary }]}>Total Liabilities</Text>
+              <Text style={[styles.balanceSheetTotalValue, { color: '#EF4444' }]}>
+                {formatCurrency(0)}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.balanceSheetSection, { backgroundColor: theme.background.secondary, padding: 12, borderRadius: 8, marginTop: 12 }]}>
+            <View style={styles.balanceSheetRow}>
+              <Text style={[styles.balanceSheetTotalLabel, { color: theme.text.primary }]}>Net Worth (Equity)</Text>
+              <Text style={[styles.balanceSheetTotalValue, { color: theme.accent.primary, fontSize: 18 }]}>
+                {formatCurrency(reportData.totalSales - reportData.totalExpenses + reportData.outstanding)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Cashflow Statement */}
+        <View style={[styles.card, { backgroundColor: theme.background.card }]}>
+          <Text style={[styles.cardTitle, { color: theme.text.primary }]}>Cashflow Statement</Text>
+          <View style={styles.cashflowSection}>
+            <Text style={[styles.cashflowSectionTitle, { color: theme.text.secondary }]}>Operating Activities</Text>
+            <View style={styles.cashflowRow}>
+              <Text style={[styles.cashflowLabel, { color: theme.text.tertiary }]}>Cash from Sales</Text>
+              <Text style={[styles.cashflowValue, { color: '#10B981' }]}>
+                +{formatCurrency(reportData.totalPaid)}
+              </Text>
+            </View>
+            <View style={styles.cashflowRow}>
+              <Text style={[styles.cashflowLabel, { color: theme.text.tertiary }]}>Cash Paid for Expenses</Text>
+              <Text style={[styles.cashflowValue, { color: '#EF4444' }]}>
+                -{formatCurrency(reportData.totalExpenses)}
+              </Text>
+            </View>
+            <View style={[styles.cashflowTotal, { borderTopColor: theme.background.secondary }]}>
+              <Text style={[styles.cashflowTotalLabel, { color: theme.text.primary }]}>Net Cash from Operations</Text>
+              <Text style={[styles.cashflowTotalValue, { color: reportData.profit >= 0 ? '#10B981' : '#EF4444' }]}>
+                {formatCurrency(reportData.totalPaid - reportData.totalExpenses)}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.cashflowSection}>
+            <Text style={[styles.cashflowSectionTitle, { color: theme.text.secondary }]}>Investing Activities</Text>
+            <View style={styles.cashflowRow}>
+              <Text style={[styles.cashflowLabel, { color: theme.text.tertiary }]}>Capital Expenditures</Text>
+              <Text style={[styles.cashflowValue, { color: '#EF4444' }]}>
+                -{formatCurrency(0)}
+              </Text>
+            </View>
+            <View style={[styles.cashflowTotal, { borderTopColor: theme.background.secondary }]}>
+              <Text style={[styles.cashflowTotalLabel, { color: theme.text.primary }]}>Net Cash from Investing</Text>
+              <Text style={[styles.cashflowTotalValue, { color: '#EF4444' }]}>
+                {formatCurrency(0)}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.cashflowSection, { backgroundColor: theme.background.secondary, padding: 12, borderRadius: 8, marginTop: 12 }]}>
+            <View style={styles.cashflowRow}>
+              <Text style={[styles.cashflowTotalLabel, { color: theme.text.primary }]}>Net Change in Cash</Text>
+              <Text style={[styles.cashflowTotalValue, { color: reportData.profit >= 0 ? '#10B981' : '#EF4444', fontSize: 18 }]}>
+                {formatCurrency(reportData.totalPaid - reportData.totalExpenses)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
         {/* Invoice Status */}
         <View style={[styles.card, { backgroundColor: theme.background.card }]}>
           <Text style={[styles.cardTitle, { color: theme.text.primary }]}>Invoice Status</Text>

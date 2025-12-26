@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import { Search, X, FileText, Package, Users, Truck, DollarSign, FolderKanban, UserCircle } from 'lucide-react-native';
-import { useState, useMemo } from 'react';
+import { Search, X, FileText, Package, Users, Truck, DollarSign, FolderKanban, UserCircle, Clock, Trash2 } from 'lucide-react-native';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Product, Customer, Supplier, Document, Transaction, Project, Employee } from '@/types/business';
+import { getSearchHistory, addSearchHistory, clearSearchHistory, removeSearchHistoryItem } from '@/lib/search-history';
+import type { SearchHistoryItem } from '@/lib/search-history';
 
 interface SearchResult {
   type: 'product' | 'customer' | 'supplier' | 'document' | 'transaction' | 'project' | 'employee';
@@ -40,6 +42,36 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
   } = useBusiness();
   const { theme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      loadSearchHistory();
+    }
+  }, [visible]);
+
+  const loadSearchHistory = async () => {
+    const history = await getSearchHistory();
+    setSearchHistory(history);
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    setShowHistory(text.length === 0 && searchHistory.length > 0);
+  };
+
+  const handleHistorySelect = (query: string) => {
+    setSearchQuery(query);
+    setShowHistory(false);
+  };
+
+  const handleSearch = async () => {
+    if (searchQuery.trim().length >= 2) {
+      await addSearchHistory(searchQuery, searchResults.length);
+      setShowHistory(false);
+    }
+  };
 
   const searchResults = useMemo(() => {
     if (!searchQuery || searchQuery.length < 2) return [];
@@ -201,7 +233,8 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
     }
   };
 
-  const handleResultPress = (result: SearchResult) => {
+  const handleResultPress = async (result: SearchResult) => {
+    await addSearchHistory(searchQuery, searchResults.length);
     onClose();
     setSearchQuery('');
     
@@ -257,9 +290,10 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
                 placeholder="Search everything..."
                 placeholderTextColor={theme.text.tertiary}
                 value={searchQuery}
-                onChangeText={setSearchQuery}
+                onChangeText={handleSearchChange}
                 autoFocus
                 returnKeyType="search"
+                onSubmitEditing={handleSearch}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -274,7 +308,41 @@ export default function GlobalSearch({ visible, onClose }: GlobalSearchProps) {
 
           {/* Results */}
           <ScrollView style={styles.results} contentContainerStyle={styles.resultsContent}>
-            {searchQuery.length < 2 ? (
+            {showHistory && searchHistory.length > 0 ? (
+              <View style={styles.historySection}>
+                <View style={styles.historyHeader}>
+                  <Text style={[styles.historyTitle, { color: theme.text.primary }]}>Recent Searches</Text>
+                  <TouchableOpacity onPress={async () => {
+                    await clearSearchHistory();
+                    await loadSearchHistory();
+                  }}>
+                    <Text style={[styles.clearHistoryText, { color: theme.accent.primary }]}>Clear</Text>
+                  </TouchableOpacity>
+                </View>
+                {searchHistory.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.historyItem, { backgroundColor: theme.background.secondary }]}
+                    onPress={() => handleHistorySelect(item.query)}
+                  >
+                    <View style={styles.historyItemLeft}>
+                      <Clock size={16} color={theme.text.tertiary} />
+                      <Text style={[styles.historyItemText, { color: theme.text.primary }]}>
+                        {item.query}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        await removeSearchHistoryItem(item.query);
+                        await loadSearchHistory();
+                      }}
+                    >
+                      <X size={16} color={theme.text.tertiary} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : searchQuery.length < 2 ? (
               <View style={styles.emptyState}>
                 <Search size={48} color={theme.text.tertiary} />
                 <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
@@ -426,6 +494,41 @@ const styles = StyleSheet.create({
   },
   resultSubtitle: {
     fontSize: 13,
+  },
+  historySection: {
+    padding: 16,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  clearHistoryText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  historyItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  historyItemText: {
+    fontSize: 14,
+    flex: 1,
   },
 });
 

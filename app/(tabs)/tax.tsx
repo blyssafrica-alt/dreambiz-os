@@ -6,9 +6,11 @@ import {
   Trash2,
   CheckCircle,
   X,
-  AlertCircle
+  AlertCircle,
+  Bell,
+  Calendar
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -121,6 +123,52 @@ export default function TaxScreen() {
   const activeRates = taxRates.filter(t => t.isActive);
   const defaultRate = taxRates.find(t => t.isDefault && t.isActive);
 
+  // Tax reminders - upcoming tax deadlines
+  const taxReminders = useMemo(() => {
+    const reminders = [];
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Monthly tax reminder (15th of each month)
+    const monthlyDeadline = new Date(currentYear, currentMonth, 15);
+    if (monthlyDeadline > now && monthlyDeadline.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000) {
+      reminders.push({
+        id: 'monthly',
+        type: 'warning',
+        title: 'Monthly Tax Filing Due Soon',
+        message: `Monthly tax filing is due on ${monthlyDeadline.toLocaleDateString()}`,
+        deadline: monthlyDeadline.toISOString(),
+      });
+    }
+    
+    // Quarterly reminder (end of quarter)
+    const quarterEnd = new Date(currentYear, Math.floor(currentMonth / 3) * 3 + 3, 0);
+    if (quarterEnd > now && quarterEnd.getTime() - now.getTime() < 14 * 24 * 60 * 60 * 1000) {
+      reminders.push({
+        id: 'quarterly',
+        type: 'info',
+        title: 'Quarterly Tax Filing Due Soon',
+        message: `Quarterly tax filing is due on ${quarterEnd.toLocaleDateString()}`,
+        deadline: quarterEnd.toISOString(),
+      });
+    }
+    
+    // Yearly reminder (end of year)
+    const yearEnd = new Date(currentYear, 11, 31);
+    if (yearEnd > now && yearEnd.getTime() - now.getTime() < 30 * 24 * 60 * 60 * 1000) {
+      reminders.push({
+        id: 'yearly',
+        type: 'info',
+        title: 'Annual Tax Filing Due Soon',
+        message: `Annual tax filing is due on ${yearEnd.toLocaleDateString()}`,
+        deadline: yearEnd.toISOString(),
+      });
+    }
+    
+    return reminders;
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background.secondary }]}>
       <Stack.Screen options={{ title: 'Tax Management', headerShown: false }} />
@@ -143,6 +191,33 @@ export default function TaxScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* Tax Reminders */}
+        {taxReminders.length > 0 && (
+          <View style={[styles.remindersCard, { backgroundColor: theme.background.card }]}>
+            <View style={styles.remindersHeader}>
+              <Bell size={20} color={theme.accent.warning} />
+              <Text style={[styles.remindersTitle, { color: theme.text.primary }]}>Tax Reminders</Text>
+            </View>
+            {taxReminders.map(reminder => (
+              <View key={reminder.id} style={[styles.reminderItem, { backgroundColor: theme.background.secondary }]}>
+                <View style={styles.reminderContent}>
+                  <Text style={[styles.reminderTitle, { color: theme.text.primary }]}>
+                    {reminder.title}
+                  </Text>
+                  <Text style={[styles.reminderMessage, { color: theme.text.secondary }]}>
+                    {reminder.message}
+                  </Text>
+                  <View style={styles.reminderDate}>
+                    <Calendar size={14} color={theme.text.tertiary} />
+                    <Text style={[styles.reminderDateText, { color: theme.text.tertiary }]}>
+                      {new Date(reminder.deadline).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
         {taxRates.length === 0 ? (
           <View style={styles.emptyState}>
             <Percent size={48} color={theme.text.tertiary} />
@@ -629,6 +704,51 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  remindersCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  remindersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  remindersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  reminderItem: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  reminderContent: {
+    gap: 4,
+  },
+  reminderTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  reminderMessage: {
+    fontSize: 13,
+    marginBottom: 8,
+  },
+  reminderDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reminderDateText: {
+    fontSize: 12,
   },
 });
 

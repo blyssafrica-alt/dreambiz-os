@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Share as ShareIcon, Download, Mail, FileDown, Plus, DollarSign, Trash2, X } from 'lucide-react-native';
+import { Share as ShareIcon, Download, Mail, FileDown, Plus, DollarSign, Trash2, X, QrCode, Link as LinkIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { 
   View, 
@@ -13,6 +13,7 @@ import {
   Linking,
   Modal,
   TextInput,
+  Image,
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -20,6 +21,7 @@ import type { Document } from '@/types/business';
 import { getDocumentTemplate, generateDocumentContent } from '@/lib/document-templates';
 import { exportToPDF } from '@/lib/pdf-export';
 import type { Payment } from '@/types/payments';
+import { generateQRCodeData, generatePaymentLink, generateQRCodePattern } from '@/lib/qr-code';
 
 export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -30,6 +32,8 @@ export default function DocumentDetailScreen() {
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer' | 'mobile_money' | 'card' | 'other'>('cash');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentReference, setPaymentReference] = useState('');
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
   
   const document = documents.find(d => d.id === id) as Document | undefined;
   
@@ -412,8 +416,155 @@ export default function DocumentDetailScreen() {
             <ShareIcon size={20} color="#FFF" />
             <Text style={styles.actionButtonText}>Share</Text>
           </TouchableOpacity>
+          {document.type === 'invoice' && outstandingAmount > 0 && (
+            <>
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: theme.accent.success }]} 
+                onPress={() => setShowQRModal(true)}
+              >
+                <QrCode size={20} color="#FFF" />
+                <Text style={styles.actionButtonText}>QR Code</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.actionButton, { backgroundColor: theme.accent.primary }]} 
+                onPress={() => setShowPaymentLinkModal(true)}
+              >
+                <LinkIcon size={20} color="#FFF" />
+                <Text style={styles.actionButtonText}>Payment Link</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text.primary }]}>Payment QR Code</Text>
+              <TouchableOpacity onPress={() => setShowQRModal(false)}>
+                <X size={24} color={theme.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.qrContainer}>
+                <Text style={[styles.qrTitle, { color: theme.text.primary }]}>
+                  Scan to Pay
+                </Text>
+                <Text style={[styles.qrAmount, { color: theme.accent.primary }]}>
+                  {formatCurrency(outstandingAmount)}
+                </Text>
+                {document && business && (
+                  <Image
+                    source={{ uri: generateQRCodePattern(generateQRCodeData({
+                      documentId: document.id,
+                      amount: outstandingAmount,
+                      currency: document.currency,
+                      customerName: document.customerName,
+                    })) }}
+                    style={styles.qrImage}
+                    resizeMode="contain"
+                  />
+                )}
+                <Text style={[styles.qrHint, { color: theme.text.tertiary }]}>
+                  Customer can scan this QR code to make payment
+                </Text>
+                <TouchableOpacity
+                  style={[styles.qrButton, { backgroundColor: theme.accent.primary }]}
+                  onPress={async () => {
+                    if (document && business) {
+                      const qrData = generateQRCodeData({
+                        documentId: document.id,
+                        amount: outstandingAmount,
+                        currency: document.currency,
+                        customerName: document.customerName,
+                      });
+                      await Share.share({
+                        message: `Payment QR Code for Invoice ${document.documentNumber}\nAmount: ${formatCurrency(outstandingAmount)}\nScan the QR code to pay.`,
+                        title: 'Payment QR Code',
+                      });
+                    }
+                  }}
+                >
+                  <ShareIcon size={20} color="#FFF" />
+                  <Text style={styles.qrButtonText}>Share QR Code</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Link Modal */}
+      <Modal
+        visible={showPaymentLinkModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowPaymentLinkModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text.primary }]}>Payment Link</Text>
+              <TouchableOpacity onPress={() => setShowPaymentLinkModal(false)}>
+                <X size={24} color={theme.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <View style={styles.paymentLinkContainer}>
+                <Text style={[styles.paymentLinkTitle, { color: theme.text.primary }]}>
+                  Shareable Payment Link
+                </Text>
+                <Text style={[styles.paymentLinkAmount, { color: theme.accent.primary }]}>
+                  {formatCurrency(outstandingAmount)}
+                </Text>
+                {document && (
+                  <>
+                    <View style={[styles.linkBox, { backgroundColor: theme.background.secondary }]}>
+                      <Text style={[styles.linkText, { color: theme.text.primary }]} selectable>
+                        {generatePaymentLink(document.id)}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[styles.linkButton, { backgroundColor: theme.accent.primary }]}
+                      onPress={async () => {
+                        if (document) {
+                          const link = generatePaymentLink(document.id);
+                          await Share.share({
+                            message: `Pay Invoice ${document.documentNumber}\nAmount: ${formatCurrency(outstandingAmount)}\n\nPayment Link: ${link}`,
+                            title: 'Payment Link',
+                            url: link,
+                          });
+                        }
+                      }}
+                    >
+                      <ShareIcon size={20} color="#FFF" />
+                      <Text style={styles.linkButtonText}>Share Payment Link</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.linkButton, styles.copyButton, { backgroundColor: theme.background.secondary }]}
+                      onPress={async () => {
+                        if (document) {
+                          const link = generatePaymentLink(document.id);
+                          RNAlert.alert('Copied', 'Payment link copied to clipboard');
+                        }
+                      }}
+                    >
+                      <Text style={[styles.linkButtonText, { color: theme.text.primary }]}>Copy Link</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }

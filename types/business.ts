@@ -229,6 +229,7 @@ export interface Product {
   quantity: number;
   category?: string;
   isActive: boolean;
+  isTaxExempt?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -242,6 +243,7 @@ export interface Customer {
   notes?: string;
   totalPurchases: number;
   lastPurchaseDate?: string;
+  isTaxExempt?: boolean;
   createdAt: string;
   updatedAt: string;
 }

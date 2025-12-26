@@ -49,6 +49,7 @@ export default function ProductsScreen() {
   const [quantity, setQuantity] = useState('');
   const [category, setCategory] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [isTaxExempt, setIsTaxExempt] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -146,6 +147,7 @@ export default function ProductsScreen() {
           quantity: qty,
           category: category || undefined,
           isActive,
+          isTaxExempt,
         });
       } else {
         await addProduct({
@@ -157,6 +159,7 @@ export default function ProductsScreen() {
           quantity: qty,
           category: category || undefined,
           isActive,
+          isTaxExempt,
         });
       }
 
@@ -176,6 +179,7 @@ export default function ProductsScreen() {
     setQuantity(product.quantity.toString());
     setCategory(product.category || '');
     setIsActive(product.isActive);
+    setIsTaxExempt(product.isTaxExempt || false);
     setShowModal(true);
   };
 
@@ -210,6 +214,7 @@ export default function ProductsScreen() {
     setQuantity('');
     setCategory('');
     setIsActive(true);
+    setIsTaxExempt(false);
   };
 
   const formatCurrency = (amount: number) => {
@@ -545,6 +550,23 @@ export default function ProductsScreen() {
                   <Text style={[styles.label, { color: theme.text.primary }]}>Active</Text>
                   <View style={[styles.switch, { backgroundColor: isActive ? theme.accent.primary : theme.text.tertiary }]}>
                     <View style={[styles.switchThumb, { backgroundColor: '#fff', transform: [{ translateX: isActive ? 20 : 0 }] }]} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <TouchableOpacity
+                  style={[styles.switchRow, { backgroundColor: theme.background.secondary }]}
+                  onPress={() => setIsTaxExempt(!isTaxExempt)}
+                >
+                  <View>
+                    <Text style={[styles.label, { color: theme.text.primary }]}>Tax Exempt</Text>
+                    <Text style={[styles.hint, { color: theme.text.tertiary }]}>
+                      This product is exempt from tax
+                    </Text>
+                  </View>
+                  <View style={[styles.switch, { backgroundColor: isTaxExempt ? theme.accent.primary : theme.text.tertiary }]}>
+                    <View style={[styles.switchThumb, { backgroundColor: '#fff', transform: [{ translateX: isTaxExempt ? 20 : 0 }] }]} />
                   </View>
                 </TouchableOpacity>
               </View>

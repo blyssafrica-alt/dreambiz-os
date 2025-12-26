@@ -41,6 +41,7 @@ export default function CustomersScreen() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [isTaxExempt, setIsTaxExempt] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
@@ -116,6 +117,7 @@ export default function CustomersScreen() {
           phone: phone || undefined,
           address: address || undefined,
           notes: notes || undefined,
+          isTaxExempt,
         });
       } else {
         await addCustomer({
@@ -124,6 +126,7 @@ export default function CustomersScreen() {
           phone: phone || undefined,
           address: address || undefined,
           notes: notes || undefined,
+          isTaxExempt,
         });
       }
 
@@ -141,6 +144,7 @@ export default function CustomersScreen() {
     setPhone(customer.phone || '');
     setAddress(customer.address || '');
     setNotes(customer.notes || '');
+    setIsTaxExempt(customer.isTaxExempt || false);
     setShowModal(true);
   };
 
@@ -173,6 +177,7 @@ export default function CustomersScreen() {
     setPhone('');
     setAddress('');
     setNotes('');
+    setIsTaxExempt(false);
   };
 
   const formatCurrency = (amount: number) => {
@@ -489,6 +494,23 @@ export default function CustomersScreen() {
                   multiline
                   numberOfLines={3}
                 />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <TouchableOpacity
+                  style={[styles.switchRow, { backgroundColor: theme.background.secondary }]}
+                  onPress={() => setIsTaxExempt(!isTaxExempt)}
+                >
+                  <View>
+                    <Text style={[styles.label, { color: theme.text.primary }]}>Tax Exempt</Text>
+                    <Text style={[styles.hint, { color: theme.text.tertiary }]}>
+                      This customer is exempt from tax
+                    </Text>
+                  </View>
+                  <View style={[styles.switch, { backgroundColor: isTaxExempt ? theme.accent.primary : theme.text.tertiary }]}>
+                    <View style={[styles.switchThumb, { backgroundColor: '#fff', transform: [{ translateX: isTaxExempt ? 20 : 0 }] }]} />
+                  </View>
+                </TouchableOpacity>
               </View>
             </ScrollView>
 
@@ -861,6 +883,29 @@ const styles = StyleSheet.create({
   },
   communicationDate: {
     fontSize: 12,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+  },
+  switch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  switchThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 
