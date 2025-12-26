@@ -41,7 +41,11 @@ BEGIN
   WHERE NOT EXISTS (
     SELECT 1 FROM public.users u WHERE u.id = au.id
   )
-  ON CONFLICT (id) DO NOTHING;
+  AND NOT EXISTS (
+    SELECT 1 FROM public.users u WHERE u.email = au.email
+  )
+  ON CONFLICT (id) DO NOTHING
+  ON CONFLICT (email) DO NOTHING;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
