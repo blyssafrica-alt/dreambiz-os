@@ -30,6 +30,7 @@ CREATE TRIGGER on_auth_user_created
 CREATE OR REPLACE FUNCTION public.sync_existing_users()
 RETURNS void AS $$
 BEGIN
+  -- Insert users that don't exist by ID or email
   INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
   SELECT 
     au.id,
@@ -39,13 +40,20 @@ BEGIN
     false
   FROM auth.users au
   WHERE NOT EXISTS (
-    SELECT 1 FROM public.users u WHERE u.id = au.id
+    SELECT 1 FROM public.users u WHERE u.id = au.id OR u.email = au.email
   )
-  AND NOT EXISTS (
-    SELECT 1 FROM public.users u WHERE u.email = au.email
-  )
-  ON CONFLICT (id) DO NOTHING
-  ON CONFLICT (email) DO NOTHING;
+  ON CONFLICT (id) DO NOTHING;
+  
+  -- Handle email conflicts separately (if email exists but ID is different)
+  -- Update existing records to match auth.users if needed
+  UPDATE public.users u
+  SET 
+    name = COALESCE(au.raw_user_meta_data->>'name', au.email),
+    email = au.email
+  FROM auth.users au
+  WHERE u.email = au.email 
+    AND u.id != au.id
+    AND EXISTS (SELECT 1 FROM auth.users WHERE id = au.id);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
