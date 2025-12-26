@@ -118,96 +118,86 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       // First, ensure the user profile exists in the users table
       // This is required because business_profiles has a foreign key constraint on user_id
       // Note: If a database trigger is set up, the profile should be created automatically
-      let profileExists = false; // Track if we know the profile exists (even if we can't read it)
-      let profileExistsButUnreadable = false; // Track if profile exists but RLS prevents reading it
       
       if (!user && authUser) {
-        
         try {
           const provider = getProvider();
           
-          // First, try to get the profile (it might already exist or be created by trigger)
+          // Try to call the RPC function to sync/create the user profile
+          // This function uses SECURITY DEFINER so it bypasses RLS
+          try {
+            const { data: rpcData, error: rpcError } = await supabase.rpc('sync_user_profile', { 
+              user_id_param: authUser.id 
+            });
+            
+            if (rpcData && (rpcData as any).success) {
+              console.log('✅ User profile synced via RPC:', (rpcData as any).message);
+            } else if (rpcError) {
+              console.log('⚠️ RPC sync failed (this is okay if trigger exists):', rpcError.message);
+            }
+          } catch (rpcErr) {
+            console.log('⚠️ RPC function not available (this is okay if trigger exists):', rpcErr);
+          }
+          
+          // Try to get or create the profile
           let profile = await provider.getUserProfile(authUser.id);
           
           if (!profile) {
-            // Profile doesn't exist, try to create it
-            // createUserProfile will throw if it can't actually create the profile in DB
+            // Try to create it
             try {
               profile = await provider.createUserProfile(authUser.id, {
                 email: authUser.email,
                 name: authUser.metadata?.name || authUser.email.split('@')[0] || 'User',
                 isSuperAdmin: false,
               });
-              profileExists = true;
+              console.log('✅ User profile created successfully');
             } catch (createError: any) {
-              // Extract error message
-              const createErrorMessage = createError?.message || (typeof createError === 'string' ? createError : JSON.stringify(createError));
-              const createErrorCode = (createError as any)?.code || '';
+              // Extract error details
+              const createErrorMessage = createError?.message || String(createError);
+              const createErrorCode = createError?.code || '';
               
-              // If it's a duplicate key error, the profile EXISTS in database
+              // If it's a duplicate key error, profile exists - this is fine
               if (createErrorMessage.includes('duplicate key') || 
-                  createErrorMessage.includes('duplicate') || 
                   createErrorMessage.includes('already exists') ||
                   createErrorCode === '23505' ||
                   createErrorMessage.includes('users_email_key') ||
                   createErrorMessage.includes('users_pkey')) {
-                // Profile exists in DB - foreign key will be satisfied
-                // But we might not be able to read it due to RLS
-                profileExists = true;
-                profileExistsButUnreadable = true;
-                console.log('✅ Profile exists (duplicate key) - proceeding with business creation');
+                console.log('✅ Profile already exists (duplicate key detected)');
+                // Profile exists, proceed
+              } else if (createErrorMessage.includes('RLS') || 
+                         createErrorMessage.includes('row-level security') ||
+                         createErrorCode === '42501') {
+                console.log('⚠️ RLS prevents profile creation - relying on trigger');
+                // RLS blocks creation, but trigger should have created it
+                // Proceed and let foreign key constraint catch real issues
               } else {
-                // For RLS errors, we need the trigger to be set up
-                // Don't proceed - the profile must exist in DB
-                throw new Error(`Cannot create user profile: ${createErrorMessage}. Please ensure the database trigger is set up (see database/create_user_profile_trigger.sql)`);
+                // Other error - log but proceed anyway
+                // Foreign key constraint will catch if profile truly doesn't exist
+                console.warn('⚠️ Profile creation failed:', createErrorMessage);
+                console.warn('Proceeding anyway - foreign key constraint will validate');
               }
             }
           } else {
             console.log('✅ User profile already exists');
-            profileExists = true;
           }
-        } catch (profileError: any) {
-          // Check if it's a duplicate key error - if so, profile exists, proceed anyway
-          const errorMessage = profileError?.message || (typeof profileError === 'string' ? profileError : '');
-          if (errorMessage.includes('duplicate key') || 
-              errorMessage.includes('users_email_key') || 
-              errorMessage.includes('users_pkey') ||
-              errorMessage.includes('23505')) {
-            // Duplicate key means profile exists in database
-            profileExists = true;
-            console.warn('⚠️ Duplicate key error - profile exists in database. Proceeding with business profile creation...');
+        } catch (outerError: any) {
+          // Extract error message properly
+          const errorMsg = outerError?.message || String(outerError);
+          const errorCode = outerError?.code || '';
+          
+          // Check if it's a duplicate key or RLS error - these are okay
+          if (errorMsg.includes('duplicate key') || 
+              errorMsg.includes('already exists') ||
+              errorCode === '23505' ||
+              errorMsg.includes('RLS') ||
+              errorMsg.includes('row-level security') ||
+              errorCode === '42501') {
+            console.log('✅ Profile exists or RLS active - proceeding');
+            // Proceed - profile likely exists
           } else {
-            // Extract error message properly to avoid [object Object]
-            let errorMsg = '';
-            if (typeof profileError === 'string') {
-              errorMsg = profileError;
-            } else if (profileError?.message) {
-              errorMsg = profileError.message;
-            } else if (profileError?.toString && typeof profileError.toString === 'function') {
-              errorMsg = profileError.toString();
-            } else {
-              try {
-                errorMsg = JSON.stringify(profileError, null, 2);
-              } catch {
-                errorMsg = 'Unknown error occurred while creating user profile';
-              }
-            }
-            
-            // Log with proper stringification
-            const errorCode = profileError?.code || '';
-            const errorDetails = profileError?.details || '';
-            console.error('Failed to ensure user profile exists:', errorMsg);
-            if (errorCode) console.error('Error code:', errorCode);
-            if (errorDetails) console.error('Error details:', errorDetails);
-            
-            throw new Error(`Cannot save business profile: ${errorMsg}`);
+            console.warn('⚠️ Profile verification warning:', errorMsg);
+            console.warn('Proceeding anyway - foreign key constraint will validate');
           }
-        }
-        
-        // If we know the profile exists (even if we can't read it), we can proceed
-        // The foreign key constraint will be satisfied
-        if (!profileExists && !profileExistsButUnreadable) {
-          throw new Error('User profile is required but could not be created or verified. Please ensure the database trigger is set up (see database/create_user_profile_trigger.sql)');
         }
       }
       
@@ -216,32 +206,9 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         throw new Error('User authentication required to save business profile');
       }
       
-      // Final check: Try to verify the user exists in the database by attempting a simple query
-      // However, if we already know the profile exists (from RPC or duplicate key), skip this check
-      // because RLS might prevent reading it even though it exists in the database
-      if (!profileExists && !profileExistsButUnreadable) {
-        try {
-          const provider = getProvider();
-          const verifyProfile = await provider.getUserProfile(userId);
-          if (!verifyProfile) {
-            // Profile doesn't exist and we can't create it - must set up trigger
-            throw new Error('User profile does not exist in database. Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor, then run: SELECT public.sync_existing_users();');
-          }
-        } catch (verifyError: any) {
-          // If it's just a "not found" error, that's a problem
-          const verifyMsg = verifyError?.message || String(verifyError);
-          if (!verifyMsg.includes('PGRST116') && !verifyMsg.includes('No rows returned')) {
-            throw new Error(`Cannot verify user profile: ${verifyMsg}. Please ensure the database trigger is set up.`);
-          } else {
-            // "Not found" error - profile doesn't exist
-            throw new Error('User profile does not exist in database. Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor, then run: SELECT public.sync_existing_users();');
-          }
-        }
-      } else {
-        // We know the profile exists (from RPC or duplicate key) - proceed even if we can't read it
-        // The foreign key constraint will be satisfied because the profile exists in DB
-        console.log('✅ Profile confirmed to exist (may not be readable due to RLS) - proceeding with business creation');
-      }
+      // At this point, we've done our best to ensure the profile exists
+      // If it doesn't, the database's foreign key constraint will catch it
+      console.log('✅ Proceeding with business profile creation for user:', userId);
 
       // Prepare the data object - only include id if it's a valid UUID
       // For new businesses, let the database generate the UUID
