@@ -180,7 +180,7 @@ export default function FinancesScreen() {
 
     try {
       if (Platform.OS === 'web') {
-        const blob = new Blob([csvContent], { type: 'text/csv', lastModified: Date.now() });
+        const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
         if (!a) throw new Error('Document not available');

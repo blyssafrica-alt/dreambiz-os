@@ -77,7 +77,7 @@ export default function DocumentDetailScreen() {
 
     try {
       if (Platform.OS === 'web') {
-        const blob = new Blob([content], { type: 'text/plain', lastModified: Date.now() });
+        const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
         if (!a) throw new Error('Document not available');
