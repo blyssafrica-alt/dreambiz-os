@@ -79,8 +79,10 @@ export default function DocumentDetailScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
-        if (!a) throw new Error('Document not available');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = (typeof globalThis !== 'undefined' && (globalThis as any).document) as Document | null;
+        if (!doc) throw new Error('Document not available');
+        const a = doc.createElement('a');
         a.href = url;
         a.download = `${document.documentNumber}-${document.customerName}.txt`;
         a.click();
@@ -812,5 +814,82 @@ const styles = StyleSheet.create({
     color: '#0C4A6E',
     flex: 1,
     textAlign: 'right',
+  },
+  paymentsSection: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  paymentsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  paymentsTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+  },
+  addPaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addPaymentText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#FFF',
+  },
+  paymentCard: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  paymentInfo: {
+    flex: 1,
+  },
+  paymentAmount: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#10B981',
+    marginBottom: 4,
+  },
+  paymentMethod: {
+    fontSize: 12,
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  paymentRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  paymentDate: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  paymentReference: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
+  noPaymentsText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    padding: 20,
+    fontStyle: 'italic',
   },
 });

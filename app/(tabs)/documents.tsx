@@ -34,12 +34,9 @@ export default function DocumentsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<DocumentType | 'all'>('all');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showFilters] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [filterPresets] = useState<FilterPreset[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showPresetModal] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
+  const [showPresetModal, setShowPresetModal] = useState(false);
   const [presetName, setPresetName] = useState('');
 
   // Get template for current document type and business type
@@ -93,7 +90,6 @@ export default function DocumentsScreen() {
     setFilterPresets(presets);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSavePreset = async () => {
     if (!presetName.trim()) {
       RNAlert.alert('Missing Name', 'Please enter a name for this filter preset');
@@ -118,7 +114,6 @@ export default function DocumentsScreen() {
     }
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleLoadPreset = (preset: FilterPreset) => {
     const filters = preset.filters;
     if (filters.searchQuery) setSearchQuery(filters.searchQuery);
@@ -128,7 +123,6 @@ export default function DocumentsScreen() {
     RNAlert.alert('Success', `Loaded preset: ${preset.name}`);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDeletePreset = async (id: string) => {
     RNAlert.alert(
       'Delete Preset',

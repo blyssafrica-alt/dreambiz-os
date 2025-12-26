@@ -162,8 +162,10 @@ export default function BusinessPlanScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([plan], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
-        if (!a) throw new Error('Document not available');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = (typeof globalThis !== 'undefined' && (globalThis as any).document) as Document | null;
+        if (!doc) throw new Error('Document not available');
+        const a = doc.createElement('a');
         a.href = url;
         a.download = `${business?.name}-Business-Plan.txt`;
         a.click();
