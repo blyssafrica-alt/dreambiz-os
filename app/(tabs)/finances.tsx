@@ -7,7 +7,8 @@ import {
   Filter,
   X,
   Download,
-  Edit2
+  Edit2,
+  Search
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import {
@@ -36,11 +37,57 @@ export default function FinancesScreen() {
   const [category, setCategory] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'sale' | 'expense'>('all');
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   const filteredTransactions = useMemo(() => {
-    if (filterType === 'all') return transactions;
-    return transactions.filter(t => t.type === filterType);
-  }, [transactions, filterType]);
+    let filtered = transactions;
+
+    // Type filter
+    if (filterType !== 'all') {
+      filtered = filtered.filter(t => t.type === filterType);
+    }
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(t =>
+        t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.category.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      let startDate: Date;
+      
+      switch (dateFilter) {
+        case 'today':
+          startDate = new Date(now);
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          startDate = new Date(now);
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        default:
+          startDate = new Date(0);
+      }
+      
+      filtered = filtered.filter(t => new Date(t.date) >= startDate);
+    }
+
+    // Category filter
+    if (categoryFilter) {
+      filtered = filtered.filter(t => t.category === categoryFilter);
+    }
+
+    return filtered;
+  }, [transactions, filterType, searchQuery, dateFilter, categoryFilter]);
 
   const categoryOptions = type === 'sale' ? SALES_CATEGORIES : EXPENSE_CATEGORIES;
 
@@ -169,17 +216,59 @@ export default function FinancesScreen() {
         }} 
       />
       <View style={styles.container}>
-        <ScrollView contentContainerStyle={styles.content}>
-          {filterType !== 'all' && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>
-                {filterType === 'sale' ? 'Sales Only' : 'Expenses Only'}
-              </Text>
-              <TouchableOpacity onPress={() => setFilterType('all')}>
-                <X size={16} color="#0066CC" />
+        {/* Search and Filters */}
+        <View style={styles.searchFilterContainer}>
+          <View style={styles.searchBox}>
+            <Search size={18} color="#94A3B8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search transactions..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={18} color="#94A3B8" />
               </TouchableOpacity>
-            </View>
-          )}
+            )}
+          </View>
+        </View>
+
+        {/* Active Filters */}
+        {(filterType !== 'all' || dateFilter !== 'all' || categoryFilter || searchQuery) && (
+          <View style={styles.activeFiltersContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFilters}>
+              {filterType !== 'all' && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>
+                    {filterType === 'sale' ? 'Sales' : 'Expenses'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setFilterType('all')}>
+                    <X size={14} color="#0066CC" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {dateFilter !== 'all' && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{dateFilter}</Text>
+                  <TouchableOpacity onPress={() => setDateFilter('all')}>
+                    <X size={14} color="#0066CC" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {categoryFilter && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>{categoryFilter}</Text>
+                  <TouchableOpacity onPress={() => setCategoryFilter(null)}>
+                    <X size={14} color="#0066CC" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        )}
+
+        <ScrollView contentContainerStyle={styles.content}>
           {filteredTransactions.length === 0 ? (
             <View style={styles.emptyState}>
               <TrendingUp size={48} color="#CBD5E1" />
@@ -651,6 +740,39 @@ const styles = StyleSheet.create({
   categoryChipTextActive: {
     color: '#FFF',
   },
+  searchFilterContainer: {
+    padding: 16,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+  },
+  activeFiltersContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  activeFilters: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   filterModalContent: {
     backgroundColor: '#FFF',
     borderRadius: 24,
@@ -677,5 +799,41 @@ const styles = StyleSheet.create({
   },
   filterOptionTextActive: {
     color: '#0066CC',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    marginBottom: 16,
+  },
+  filterScroll: {
+    maxHeight: 400,
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#334155',
+    marginBottom: 12,
+  },
+  clearFiltersButton: {
+    padding: 16,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#EF4444',
   },
 });

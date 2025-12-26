@@ -70,7 +70,50 @@ export default function ProductsScreen() {
     return filtered;
   }, [products, searchQuery, selectedCategory]);
 
-  const lowStockProducts = products.filter(p => p.quantity < 10 && p.isActive);
+  // Low stock threshold (can be made configurable)
+  const lowStockThreshold = 10;
+  const lowStockProducts = useMemo(() => {
+    return products.filter(p => p.quantity <= lowStockThreshold && p.isActive);
+  }, [products, lowStockThreshold]);
+
+  // Product performance analytics
+  const productAnalytics = useMemo(() => {
+    const totalProducts = products.length;
+    const activeProducts = products.filter(p => p.isActive).length;
+    const lowStockCount = lowStockProducts.length;
+    const outOfStockCount = products.filter(p => p.quantity === 0 && p.isActive).length;
+    
+    // Calculate total inventory value
+    const totalInventoryValue = products.reduce((sum, p) => {
+      return sum + (p.costPrice * p.quantity);
+    }, 0);
+
+    // Best selling products (by quantity sold - would need transaction data)
+    // For now, we'll use products with highest quantity as proxy
+    const bestSelling = [...products]
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
+
+    // Products with best profit margin
+    const bestMargin = [...products]
+      .filter(p => p.costPrice > 0 && p.sellingPrice > p.costPrice)
+      .map(p => ({
+        ...p,
+        margin: ((p.sellingPrice - p.costPrice) / p.costPrice) * 100,
+      }))
+      .sort((a, b) => b.margin - a.margin)
+      .slice(0, 5);
+
+    return {
+      totalProducts,
+      activeProducts,
+      lowStockCount,
+      outOfStockCount,
+      totalInventoryValue,
+      bestSelling,
+      bestMargin,
+    };
+  }, [products, lowStockProducts]);
 
   const handleSave = async () => {
     if (!name || !costPrice || !sellingPrice) {
@@ -227,6 +270,60 @@ export default function ProductsScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* Product Analytics Summary */}
+        {products.length > 0 && (
+          <View style={[styles.analyticsCard, { backgroundColor: theme.background.card }]}>
+            <Text style={[styles.analyticsTitle, { color: theme.text.primary }]}>Inventory Overview</Text>
+            <View style={styles.analyticsGrid}>
+              <View style={styles.analyticsItem}>
+                <Text style={[styles.analyticsValue, { color: theme.text.primary }]}>
+                  {productAnalytics.totalProducts}
+                </Text>
+                <Text style={[styles.analyticsLabel, { color: theme.text.secondary }]}>Total Products</Text>
+              </View>
+              <View style={styles.analyticsItem}>
+                <Text style={[styles.analyticsValue, { color: theme.accent.success }]}>
+                  {productAnalytics.activeProducts}
+                </Text>
+                <Text style={[styles.analyticsLabel, { color: theme.text.secondary }]}>Active</Text>
+              </View>
+              <View style={styles.analyticsItem}>
+                <Text style={[styles.analyticsValue, { color: productAnalytics.lowStockCount > 0 ? theme.accent.warning : theme.text.primary }]}>
+                  {productAnalytics.lowStockCount}
+                </Text>
+                <Text style={[styles.analyticsLabel, { color: theme.text.secondary }]}>Low Stock</Text>
+              </View>
+              <View style={styles.analyticsItem}>
+                <Text style={[styles.analyticsValue, { color: theme.text.primary }]}>
+                  {formatCurrency(productAnalytics.totalInventoryValue)}
+                </Text>
+                <Text style={[styles.analyticsLabel, { color: theme.text.secondary }]}>Inventory Value</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Best Margin Products */}
+        {productAnalytics.bestMargin.length > 0 && (
+          <View style={[styles.analyticsCard, { backgroundColor: theme.background.card }]}>
+            <Text style={[styles.analyticsTitle, { color: theme.text.primary }]}>Top Profit Margins</Text>
+            {productAnalytics.bestMargin.map((product, index) => (
+              <View key={product.id} style={styles.topProductRow}>
+                <Text style={[styles.topProductRank, { color: theme.text.tertiary }]}>{index + 1}</Text>
+                <View style={styles.topProductInfo}>
+                  <Text style={[styles.topProductName, { color: theme.text.primary }]}>{product.name}</Text>
+                  <Text style={[styles.topProductMargin, { color: theme.accent.success }]}>
+                    {product.margin.toFixed(1)}% margin
+                  </Text>
+                </View>
+                <Text style={[styles.topProductPrice, { color: theme.text.primary }]}>
+                  {formatCurrency(product.sellingPrice)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {filteredProducts.length === 0 ? (
           <View style={styles.emptyState}>
             <Package size={48} color={theme.text.tertiary} />
@@ -245,7 +342,8 @@ export default function ProductsScreen() {
         ) : (
           filteredProducts.map(product => {
             const profitMargin = calculateProfitMargin(product.costPrice, product.sellingPrice);
-            const isLowStock = product.quantity < 10 && product.isActive;
+            const isLowStock = product.quantity <= lowStockThreshold && product.isActive;
+            const isOutOfStock = product.quantity === 0 && product.isActive;
             
             return (
               <View
@@ -253,7 +351,9 @@ export default function ProductsScreen() {
                 style={[
                   styles.productCard,
                   { backgroundColor: theme.background.card },
-                  !product.isActive && { opacity: 0.6 }
+                  !product.isActive && { opacity: 0.6 },
+                  isLowStock && { borderLeftWidth: 4, borderLeftColor: theme.accent.warning },
+                  isOutOfStock && { borderLeftWidth: 4, borderLeftColor: theme.accent.danger }
                 ]}
               >
                 <View style={styles.productHeader}>
@@ -781,6 +881,76 @@ const styles = StyleSheet.create({
   filterOptionText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  analyticsCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  analyticsTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 16,
+  },
+  analyticsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  analyticsItem: {
+    width: '47%',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+  },
+  analyticsValue: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  analyticsLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  topProductRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    marginBottom: 8,
+    gap: 12,
+  },
+  topProductRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
+    textAlign: 'center',
+    lineHeight: 24,
+    fontSize: 12,
+    fontWeight: '700' as const,
+  },
+  topProductInfo: {
+    flex: 1,
+  },
+  topProductName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
+  topProductMargin: {
+    fontSize: 12,
+  },
+  topProductPrice: {
+    fontSize: 14,
+    fontWeight: '600' as const,
   },
 });
 

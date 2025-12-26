@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake } from 'lucide-react-native';
+import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake, AlertCircle, Filter } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import {
   View,
@@ -28,12 +28,51 @@ export default function DocumentsScreen() {
     { description: '', quantity: '1', price: '' }
   ]);
   const [templateFields, setTemplateFields] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
+  const [typeFilter, setTypeFilter] = useState<DocumentType | 'all'>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Get template for current document type and business type
   const template = useMemo(() => {
     if (!business) return null;
     return getDocumentTemplate(docType, business.type);
   }, [docType, business]);
+
+  // Payment reminders - overdue invoices
+  const overdueInvoices = useMemo(() => {
+    return documents.filter(doc => {
+      if (doc.type !== 'invoice') return false;
+      if (doc.status === 'paid' || doc.status === 'cancelled') return false;
+      if (!doc.dueDate) return false;
+      return new Date(doc.dueDate) < new Date();
+    });
+  }, [documents]);
+
+  // Filtered documents
+  const filteredDocuments = useMemo(() => {
+    let filtered = documents;
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(doc =>
+        doc.documentNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.customerName.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(doc => doc.status === statusFilter);
+    }
+
+    // Type filter
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(doc => doc.type === typeFilter);
+    }
+
+    return filtered;
+  }, [documents, searchQuery, statusFilter, typeFilter]);
 
   // Reset template fields when document type changes
   const handleDocTypeChange = (newType: DocumentType) => {
@@ -225,15 +264,54 @@ export default function DocumentsScreen() {
     <>
       <Stack.Screen options={{ title: 'Documents' }} />
       <View style={styles.container}>
+        {/* Payment Reminders Banner */}
+        {overdueInvoices.length > 0 && (
+          <View style={styles.paymentReminderBanner}>
+            <AlertCircle size={20} color="#EF4444" />
+            <View style={styles.paymentReminderContent}>
+              <Text style={styles.paymentReminderTitle}>
+                {overdueInvoices.length} Overdue Invoice{overdueInvoices.length > 1 ? 's' : ''}
+              </Text>
+              <Text style={styles.paymentReminderText}>
+                Total outstanding: {formatCurrency(overdueInvoices.reduce((sum, doc) => sum + doc.total, 0))}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Search and Filters */}
+        <View style={styles.searchFilterContainer}>
+          <View style={styles.searchBox}>
+            <FileText size={18} color="#94A3B8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search documents..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <X size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            )}
+          </View>
+          <TouchableOpacity
+            style={[styles.filterButton, (statusFilter !== 'all' || typeFilter !== 'all') && styles.filterButtonActive]}
+            onPress={() => setShowFilters(true)}
+          >
+            <Filter size={18} color={(statusFilter !== 'all' || typeFilter !== 'all') ? '#fff' : '#64748B'} />
+          </TouchableOpacity>
+        </View>
+
         <ScrollView contentContainerStyle={styles.content}>
-          {documents.length === 0 ? (
+          {filteredDocuments.length === 0 ? (
             <View style={styles.emptyState}>
               <FileText size={48} color="#CBD5E1" />
               <Text style={styles.emptyTitle}>No documents yet</Text>
               <Text style={styles.emptyDesc}>Create professional invoices, receipts, quotations, purchase orders, contracts, and supplier agreements</Text>
             </View>
           ) : (
-            documents.map((doc) => {
+            filteredDocuments.map((doc) => {
               const overdue = isOverdue(doc);
               return (
                 <TouchableOpacity 
@@ -784,5 +862,112 @@ const styles = StyleSheet.create({
   },
   selectOptionTextActive: {
     color: '#FFF',
+  },
+  paymentReminderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FEE2E2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+    marginBottom: 12,
+    gap: 12,
+  },
+  paymentReminderContent: {
+    flex: 1,
+  },
+  paymentReminderTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#991B1B',
+    marginBottom: 4,
+  },
+  paymentReminderText: {
+    fontSize: 13,
+    color: '#B91C1C',
+  },
+  searchFilterContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+  },
+  filterButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterButtonActive: {
+    backgroundColor: '#0066CC',
+    borderColor: '#0066CC',
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#334155',
+    marginBottom: 12,
+  },
+  filterOptions: {
+    gap: 8,
+  },
+  filterOption: {
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  filterOptionActive: {
+    backgroundColor: '#0066CC',
+    borderColor: '#0066CC',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '600' as const,
+  },
+  filterOptionTextActive: {
+    color: '#FFF',
+  },
+  clearFiltersButton: {
+    padding: 16,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#EF4444',
   },
 });

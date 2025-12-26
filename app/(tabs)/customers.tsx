@@ -8,7 +8,12 @@ import {
   X,
   Phone,
   Mail,
-  MapPin
+  MapPin,
+  Eye,
+  TrendingUp,
+  Clock,
+  FileText,
+  DollarSign
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import {
@@ -27,7 +32,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import type { Customer } from '@/types/business';
 
 export default function CustomersScreen() {
-  const { business, customers, addCustomer, updateCustomer, deleteCustomer } = useBusiness();
+  const { business, customers, documents, transactions, addCustomer, updateCustomer, deleteCustomer } = useBusiness();
   const { theme } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,6 +42,8 @@ export default function CustomersScreen() {
   const [address, setAddress] = useState('');
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerDetail, setShowCustomerDetail] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     if (!searchQuery) return customers;
@@ -46,6 +53,54 @@ export default function CustomersScreen() {
       c.phone?.includes(searchQuery)
     );
   }, [customers, searchQuery]);
+
+  // Calculate customer analytics
+  const customerAnalytics = useMemo(() => {
+    if (!selectedCustomer) return null;
+
+    // Find documents for this customer (match by name, email, or phone)
+    const customerDocs = documents.filter(doc =>
+      doc.customerName.toLowerCase() === selectedCustomer.name.toLowerCase() ||
+      (selectedCustomer.email && doc.customerEmail?.toLowerCase() === selectedCustomer.email.toLowerCase()) ||
+      (selectedCustomer.phone && doc.customerPhone === selectedCustomer.phone)
+    );
+
+    // Calculate lifetime value
+    const lifetimeValue = customerDocs.reduce((sum, doc) => sum + doc.total, 0);
+
+    // Purchase history timeline
+    const purchaseHistory = customerDocs
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
+
+    // Payment behavior
+    const paidInvoices = customerDocs.filter(d => d.type === 'invoice' && d.status === 'paid');
+    const totalInvoices = customerDocs.filter(d => d.type === 'invoice');
+    const paymentRate = totalInvoices.length > 0 
+      ? (paidInvoices.length / totalInvoices.length) * 100 
+      : 0;
+
+    // Average order value
+    const avgOrderValue = customerDocs.length > 0 
+      ? lifetimeValue / customerDocs.length 
+      : 0;
+
+    // Last purchase date
+    const lastPurchase = customerDocs.length > 0
+      ? customerDocs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
+      : null;
+
+    return {
+      lifetimeValue,
+      purchaseHistory,
+      paymentRate,
+      avgOrderValue,
+      totalOrders: customerDocs.length,
+      lastPurchase,
+      paidInvoices: paidInvoices.length,
+      totalInvoices: totalInvoices.length,
+    };
+  }, [selectedCustomer, documents]);
 
   const handleSave = async () => {
     if (!name) {
@@ -201,6 +256,15 @@ export default function CustomersScreen() {
                 <View style={styles.customerActions}>
                   <TouchableOpacity
                     style={styles.actionButton}
+                    onPress={() => {
+                      setSelectedCustomer(customer);
+                      setShowCustomerDetail(true);
+                    }}
+                  >
+                    <Eye size={18} color={theme.accent.info} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
                     onPress={() => handleEdit(customer)}
                   >
                     <Edit2 size={18} color={theme.accent.primary} />
@@ -260,6 +324,91 @@ export default function CustomersScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Customer Detail Modal */}
+      <Modal visible={showCustomerDetail} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
+                {selectedCustomer?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setShowCustomerDetail(false)}>
+                <X size={24} color={theme.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {customerAnalytics && (
+                <>
+                  {/* Customer Stats */}
+                  <View style={[styles.statsCard, { backgroundColor: theme.background.secondary }]}>
+                    <View style={styles.statsGrid}>
+                      <View style={styles.statItem}>
+                        <DollarSign size={20} color={theme.accent.success} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {formatCurrency(customerAnalytics.lifetimeValue)}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Lifetime Value</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <FileText size={20} color={theme.accent.primary} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {customerAnalytics.totalOrders}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Total Orders</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <TrendingUp size={20} color={theme.accent.success} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {formatCurrency(customerAnalytics.avgOrderValue)}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Avg Order</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Clock size={20} color={theme.accent.info} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {customerAnalytics.paymentRate.toFixed(0)}%
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Payment Rate</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Purchase History */}
+                  {customerAnalytics.purchaseHistory.length > 0 && (
+                    <View style={styles.section}>
+                      <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Purchase History</Text>
+                      {customerAnalytics.purchaseHistory.map((doc) => (
+                        <View key={doc.id} style={[styles.historyItem, { backgroundColor: theme.background.secondary }]}>
+                          <View style={styles.historyLeft}>
+                            <Text style={[styles.historyDocNumber, { color: theme.text.primary }]}>
+                              {doc.documentNumber}
+                            </Text>
+                            <Text style={[styles.historyDate, { color: theme.text.secondary }]}>
+                              {new Date(doc.date).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          <View style={styles.historyRight}>
+                            <Text style={[styles.historyAmount, { color: theme.accent.success }]}>
+                              {formatCurrency(doc.total)}
+                            </Text>
+                            <View style={[styles.historyStatus, { backgroundColor: doc.status === 'paid' ? '#D1FAE5' : '#FEE2E2' }]}>
+                              <Text style={[styles.historyStatusText, { color: doc.status === 'paid' ? '#065F46' : '#991B1B' }]}>
+                                {doc.status}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add/Edit Modal */}
       <Modal
@@ -486,6 +635,80 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  statsCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statItem: {
+    width: '47%',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 12,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: '#F8FAFC',
+  },
+  historyLeft: {
+    flex: 1,
+  },
+  historyDocNumber: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    marginBottom: 4,
+  },
+  historyDate: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  historyRight: {
+    alignItems: 'flex-end',
+  },
+  historyAmount: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  historyStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  historyStatusText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    textTransform: 'uppercase',
   },
   modalContent: {
     borderTopLeftRadius: 20,
