@@ -57,8 +57,9 @@ function RootLayoutNav() {
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="document/[id]" options={{ title: 'Document' }} />
-          <Stack.Screen name="business-plan" options={{ title: 'Business Plan' }} />
-          <Stack.Screen name="help" options={{ title: 'Help & Support' }} />
+        <Stack.Screen name="business-plan" options={{ title: 'Business Plan' }} />
+        <Stack.Screen name="help" options={{ title: 'Help & Support' }} />
+        <Stack.Screen name="receipt-scan" options={{ title: 'Scan Receipt' }} />
       </Stack>
     </>
   );

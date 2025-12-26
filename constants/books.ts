@@ -116,8 +116,15 @@ export const getVisibleTabs = (userBook: DreamBigBook | undefined): string[] => 
       additionalTabs.push('customers', 'products', 'reports', 'projects');
       break;
     case 'scale-up':
-      additionalTabs.push('products', 'customers', 'suppliers', 'employees', 'projects', 'reports', 'budgets', 'cashflow', 'tax', 'accounts', 'recurring-invoices');
+      additionalTabs.push('products', 'customers', 'suppliers', 'employees', 'projects', 'reports', 'budgets', 'cashflow', 'tax', 'accounts', 'recurring-invoices', 'integrations', 'insights', 'businesses');
       break;
+  }
+  
+  // Add integrations and insights to all book owners
+  if (userBook && userBook !== 'none') {
+    if (!additionalTabs.includes('integrations')) additionalTabs.push('integrations');
+    if (!additionalTabs.includes('insights')) additionalTabs.push('insights');
+    if (!additionalTabs.includes('businesses')) additionalTabs.push('businesses');
   }
   
   return [...basicTabs, ...additionalTabs];

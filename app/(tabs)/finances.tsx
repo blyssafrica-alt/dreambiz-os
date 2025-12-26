@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { 
   Plus, 
   TrendingUp, 
@@ -8,7 +8,8 @@ import {
   X,
   Download,
   Edit2,
-  Search
+  Search,
+  Camera
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import {
@@ -324,9 +325,17 @@ export default function FinancesScreen() {
           )}
         </ScrollView>
 
-        <TouchableOpacity style={styles.fab} onPress={() => setShowModal(true)}>
-          <Plus size={24} color="#FFF" />
-        </TouchableOpacity>
+        <View style={styles.fabContainer}>
+          <TouchableOpacity 
+            style={[styles.fab, styles.fabSecondary]} 
+            onPress={() => router.push('/receipt-scan' as any)}
+          >
+            <Camera size={20} color="#0066CC" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.fab} onPress={() => setShowModal(true)}>
+            <Plus size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
 
         <Modal visible={showModal} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
@@ -600,6 +609,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  fabSecondary: {
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#0066CC',
   },
   modalOverlay: {
     flex: 1,

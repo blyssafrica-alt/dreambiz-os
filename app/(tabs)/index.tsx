@@ -15,7 +15,7 @@ import {
   FileText,
   Package,
   Users,
-  HelpCircle
+  Camera
 } from 'lucide-react-native';
 import { 
   View, 
@@ -529,6 +529,17 @@ export default function DashboardScreen() {
             >
               <Text style={[styles.actionButtonSecondaryText, { color: theme.accent.primary }]}>Create Document</Text>
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.actionButtonSecondary, { 
+                backgroundColor: theme.background.card, 
+                borderColor: theme.border.medium 
+              }]}
+              onPress={() => router.push('/receipt-scan' as any)}
+              activeOpacity={0.8}
+            >
+              <Camera size={18} color={theme.accent.primary} />
+              <Text style={[styles.actionButtonSecondaryText, { color: theme.accent.primary }]}>Scan Receipt</Text>
+            </TouchableOpacity>
           </View>
         </Animated.View>
       </ScrollView>
@@ -853,8 +864,10 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 16,
     borderWidth: 2,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
   },
   actionButtonSecondaryText: {
     fontSize: 17,

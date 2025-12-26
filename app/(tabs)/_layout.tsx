@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp, FolderKanban, UserCircle, Percent, Receipt, Repeat } from "lucide-react-native";
+import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp, FolderKanban, UserCircle, Percent, Receipt, Repeat, ShoppingCart, Calendar, Link as LinkIcon, Sparkles, Building2 } from "lucide-react-native";
 import React from "react";
 import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -244,6 +244,76 @@ export default function TabLayout() {
           href: visibleTabs.includes('recurring-invoices') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Repeat 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="pos"
+        options={{
+          title: "POS",
+          href: business?.type === 'retail' ? undefined : null,
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <ShoppingCart 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="appointments"
+        options={{
+          title: "Appointments",
+          href: business?.type === 'services' || business?.type === 'salon' ? undefined : null,
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Calendar 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="integrations"
+        options={{
+          title: "Integrations",
+          href: visibleTabs.includes('integrations') ? undefined : null,
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <LinkIcon 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="insights"
+        options={{
+          title: "Insights",
+          href: visibleTabs.includes('insights') ? undefined : null,
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Sparkles 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="businesses"
+        options={{
+          title: "Businesses",
+          href: visibleTabs.includes('businesses') ? undefined : null,
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Building2 
               size={focused ? 26 : 24} 
               color={color} 
               strokeWidth={focused ? 2.5 : 2}
