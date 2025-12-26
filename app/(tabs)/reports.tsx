@@ -22,6 +22,7 @@ import {
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Currency } from '@/types/business';
+import { LineChart, PieChart, BarChart } from '@/components/Charts';
 
 type ReportPeriod = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom';
 
@@ -66,6 +67,14 @@ export default function ReportsScreen() {
     return { start: start.toISOString().split('T')[0], end: end.toISOString().split('T')[0] };
   };
 
+  const getCategoryColor = (category: string, index: number): string => {
+    const colors = [
+      '#0066CC', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6',
+      '#6366F1', '#EF4444', '#14B8A6', '#F97316', '#A855F7',
+    ];
+    return colors[index % colors.length];
+  };
+
   const reportData = useMemo(() => {
     const { start, end } = getDateRange(period);
     const filtered = transactions.filter(t => t.date >= start && t.date <= end);
@@ -101,6 +110,58 @@ export default function ReportsScreen() {
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 5);
+
+    // Prepare chart data
+    const salesChartData = topSalesCategories.map((cat, i) => ({
+      label: cat.category,
+      value: cat.amount,
+      color: getCategoryColor(cat.category, i),
+    }));
+
+    const expensesChartData = topExpenseCategories.map((cat, i) => ({
+      label: cat.category,
+      value: cat.amount,
+      color: getCategoryColor(cat.category, i),
+    }));
+
+    // Daily trend data
+    const days = [];
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      days.push(d.toISOString().split('T')[0]);
+    }
+
+    const dailySales = days.map(date => {
+      return sales
+        .filter(t => t.date === date)
+        .reduce((sum, t) => sum + t.amount, 0);
+    });
+
+    const dailyExpenses = days.map(date => {
+      return expenses
+        .filter(t => t.date === date)
+        .reduce((sum, t) => sum + t.amount, 0);
+    });
+
+    const dailyProfit = dailySales.map((sales, i) => sales - dailyExpenses[i]);
+
+    return {
+      totalSales,
+      totalExpenses,
+      profit,
+      profitMargin,
+      topSalesCategories,
+      topExpenseCategories,
+      salesChartData,
+      expensesChartData,
+      dailySales,
+      dailyExpenses,
+      dailyProfit,
+      dailyLabels: days.map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('en-ZW', { month: 'short', day: 'numeric' });
+      }),
 
     // Invoice status breakdown
     const invoiceDocs = documents.filter(d => d.type === 'invoice' && d.date >= start && d.date <= end);
@@ -257,6 +318,43 @@ export default function ReportsScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Charts Section */}
+        {(reportData.dailySales.some(v => v > 0) || reportData.dailyExpenses.some(v => v > 0)) && (
+          <View style={[styles.card, { backgroundColor: theme.background.card }]}>
+            <Text style={[styles.cardTitle, { color: theme.text.primary }]}>Daily Trends</Text>
+            <LineChart
+              data={reportData.dailyProfit}
+              labels={reportData.dailyLabels}
+              color={reportData.profit >= 0 ? '#10B981' : '#EF4444'}
+              height={200}
+            />
+          </View>
+        )}
+
+        {reportData.salesChartData.length > 0 && (
+          <View style={[styles.card, { backgroundColor: theme.background.card }]}>
+            <Text style={[styles.cardTitle, { color: theme.text.primary }]}>Sales by Category</Text>
+            <PieChart
+              data={reportData.salesChartData}
+              size={240}
+              showLabels={true}
+              showLegend={true}
+            />
+          </View>
+        )}
+
+        {reportData.expensesChartData.length > 0 && (
+          <View style={[styles.card, { backgroundColor: theme.background.card }]}>
+            <Text style={[styles.cardTitle, { color: theme.text.primary }]}>Expenses by Category</Text>
+            <PieChart
+              data={reportData.expensesChartData}
+              size={240}
+              showLabels={true}
+              showLegend={true}
+            />
+          </View>
+        )}
 
         {/* Top Categories */}
         <View style={[styles.card, { backgroundColor: theme.background.card }]}>
