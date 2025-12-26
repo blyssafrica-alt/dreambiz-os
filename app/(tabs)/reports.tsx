@@ -146,23 +146,6 @@ export default function ReportsScreen() {
 
     const dailyProfit = dailySales.map((sales, i) => sales - dailyExpenses[i]);
 
-    return {
-      totalSales,
-      totalExpenses,
-      profit,
-      profitMargin,
-      topSalesCategories,
-      topExpenseCategories,
-      salesChartData,
-      expensesChartData,
-      dailySales,
-      dailyExpenses,
-      dailyProfit,
-      dailyLabels: days.map(d => {
-        const date = new Date(d);
-        return date.toLocaleDateString('en-ZW', { month: 'short', day: 'numeric' });
-      }),
-
     // Invoice status breakdown
     const invoiceDocs = documents.filter(d => d.type === 'invoice' && d.date >= start && d.date <= end);
     const invoiceStatus = {
@@ -183,6 +166,15 @@ export default function ReportsScreen() {
       profitMargin,
       topSalesCategories,
       topExpenseCategories,
+      salesChartData,
+      expensesChartData,
+      dailySales,
+      dailyExpenses,
+      dailyProfit,
+      dailyLabels: days.map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('en-ZW', { month: 'short', day: 'numeric' });
+      }),
       invoiceStatus,
       totalInvoiced,
       totalPaid,
