@@ -1779,6 +1779,236 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
   };
 
+  // Recurring Invoices Management
+  const addRecurringInvoice = async (invoice: Omit<RecurringInvoice, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('recurring_invoices')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          customer_name: invoice.customerName,
+          customer_email: invoice.customerEmail || null,
+          customer_phone: invoice.customerPhone || null,
+          items: invoice.items,
+          subtotal: invoice.subtotal,
+          tax: invoice.tax || null,
+          total: invoice.total,
+          currency: invoice.currency,
+          frequency: invoice.frequency,
+          start_date: invoice.startDate,
+          end_date: invoice.endDate || null,
+          next_due_date: invoice.nextDueDate,
+          is_active: invoice.isActive,
+          notes: null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newInvoice: RecurringInvoice = {
+        id: data.id,
+        customerName: data.customer_name,
+        customerEmail: data.customer_email || undefined,
+        customerPhone: data.customer_phone || undefined,
+        items: data.items as any,
+        subtotal: Number(data.subtotal),
+        tax: data.tax ? Number(data.tax) : undefined,
+        total: Number(data.total),
+        currency: data.currency as any,
+        frequency: data.frequency as any,
+        startDate: data.start_date,
+        endDate: data.end_date || undefined,
+        nextDueDate: data.next_due_date,
+        isActive: data.is_active,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setRecurringInvoices([newInvoice, ...recurringInvoices]);
+      await logActivity('recurring_invoice', newInvoice.id, 'created', `Created recurring invoice for ${invoice.customerName}`);
+    } catch (error) {
+      console.error('Failed to add recurring invoice:', error);
+      throw error;
+    }
+  };
+
+  const updateRecurringInvoice = async (id: string, updates: Partial<RecurringInvoice>) => {
+    try {
+      const updateData: any = {};
+      if (updates.customerName !== undefined) updateData.customer_name = updates.customerName;
+      if (updates.customerEmail !== undefined) updateData.customer_email = updates.customerEmail || null;
+      if (updates.customerPhone !== undefined) updateData.customer_phone = updates.customerPhone || null;
+      if (updates.items !== undefined) updateData.items = updates.items;
+      if (updates.subtotal !== undefined) updateData.subtotal = updates.subtotal;
+      if (updates.tax !== undefined) updateData.tax = updates.tax || null;
+      if (updates.total !== undefined) updateData.total = updates.total;
+      if (updates.currency !== undefined) updateData.currency = updates.currency;
+      if (updates.frequency !== undefined) updateData.frequency = updates.frequency;
+      if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
+      if (updates.endDate !== undefined) updateData.end_date = updates.endDate || null;
+      if (updates.nextDueDate !== undefined) updateData.next_due_date = updates.nextDueDate;
+      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+
+      const { error } = await supabase
+        .from('recurring_invoices')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = recurringInvoices.map(i => 
+        i.id === id ? { ...i, ...updates, updatedAt: new Date().toISOString() } : i
+      );
+      setRecurringInvoices(updated);
+      await logActivity('recurring_invoice', id, 'updated', 'Updated recurring invoice');
+    } catch (error) {
+      console.error('Failed to update recurring invoice:', error);
+      throw error;
+    }
+  };
+
+  const deleteRecurringInvoice = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('recurring_invoices')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setRecurringInvoices(recurringInvoices.filter(i => i.id !== id));
+      await logActivity('recurring_invoice', id, 'deleted', 'Deleted recurring invoice');
+    } catch (error) {
+      console.error('Failed to delete recurring invoice:', error);
+      throw error;
+    }
+  };
+
+  // Payments Management
+  const addPayment = async (payment: Omit<Payment, 'id' | 'createdAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          document_id: payment.documentId,
+          amount: payment.amount,
+          currency: payment.currency,
+          payment_date: payment.paymentDate,
+          payment_method: payment.paymentMethod,
+          reference: payment.reference || null,
+          notes: payment.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newPayment: Payment = {
+        id: data.id,
+        documentId: data.document_id,
+        amount: Number(data.amount),
+        currency: data.currency as any,
+        paymentDate: data.payment_date,
+        paymentMethod: data.payment_method as any,
+        reference: data.reference || undefined,
+        notes: data.notes || undefined,
+        createdAt: data.created_at,
+      };
+
+      setPayments([newPayment, ...payments]);
+      
+      // Update document status if fully paid
+      const document = documents.find(d => d.id === payment.documentId);
+      if (document) {
+        const totalPaid = getDocumentPaidAmount(payment.documentId);
+        if (totalPaid >= document.total) {
+          await updateDocument(payment.documentId, { status: 'paid' });
+        }
+      }
+
+      await logActivity('payment', newPayment.id, 'created', `Added payment of ${payment.amount} ${payment.currency} for document ${payment.documentId}`);
+    } catch (error) {
+      console.error('Failed to add payment:', error);
+      throw error;
+    }
+  };
+
+  const deletePayment = async (id: string) => {
+    try {
+      const payment = payments.find(p => p.id === id);
+      if (!payment) throw new Error('Payment not found');
+
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setPayments(payments.filter(p => p.id !== id));
+      
+      // Update document status if no longer fully paid
+      const document = documents.find(d => d.id === payment.documentId);
+      if (document) {
+        const totalPaid = getDocumentPaidAmount(payment.documentId);
+        if (totalPaid < document.total && document.status === 'paid') {
+          await updateDocument(payment.documentId, { status: 'sent' });
+        }
+      }
+
+      await logActivity('payment', id, 'deleted', 'Deleted payment');
+    } catch (error) {
+      console.error('Failed to delete payment:', error);
+      throw error;
+    }
+  };
+
+  const getDocumentPayments = (documentId: string): Payment[] => {
+    return payments.filter(p => p.documentId === documentId);
+  };
+
+  const getDocumentPaidAmount = (documentId: string): number => {
+    return payments
+      .filter(p => p.documentId === documentId)
+      .reduce((sum, p) => sum + p.amount, 0);
+  };
+
+  // Activity Logging
+  const logActivity = async (
+    entityType: string,
+    entityId: string,
+    action: string,
+    description?: string,
+    metadata?: any
+  ) => {
+    if (!userId || !business?.id) return;
+
+    try {
+      await supabase
+        .from('activity_logs')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          entity_type: entityType,
+          entity_id: entityId,
+          action,
+          description: description || null,
+          metadata: metadata || null,
+        });
+    } catch (error) {
+      console.error('Failed to log activity:', error);
+      // Don't throw - activity logging should not break the app
+    }
+  };
+
   return {
     business,
     transactions,
@@ -1792,6 +2022,8 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     employees,
     projects,
     projectTasks,
+    recurringInvoices,
+    payments,
     exchangeRate,
     isLoading,
     hasOnboarded,
