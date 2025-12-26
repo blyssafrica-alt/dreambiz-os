@@ -134,3 +134,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION public.sync_user_profile(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.sync_user_profile(UUID) TO anon;
 
+-- Example: Sync a specific user profile
+-- IMPORTANT: Make sure to select "No limit" in SQL Editor before running this
+-- SELECT public.sync_user_profile('d849bc7e-42ba-44ac-b4b1-598aeca0deb0'::UUID);
+
+-- Example: Sync all existing users
+-- SELECT public.sync_existing_users();
+
