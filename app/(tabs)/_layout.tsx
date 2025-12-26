@@ -1,9 +1,8 @@
 import { Tabs } from "expo-router";
-import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp } from "lucide-react-native";
+import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp, FolderKanban, UserCircle, Percent } from "lucide-react-native";
 import React from "react";
 import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
-import { lightTheme } from "@/constants/theme";
 
 export default function TabLayout() {
   const { theme, isLoading } = useTheme();
@@ -169,6 +168,51 @@ export default function TabLayout() {
               strokeWidth={focused ? 2.5 : 2}
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="projects"
+        options={{
+          title: "Projects",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <FolderKanban 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="employees"
+        options={{
+          title: "Employees",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <UserCircle 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="tax"
+        options={{
+          title: "Tax",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Percent 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="provider-settings"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen

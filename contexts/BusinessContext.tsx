@@ -81,6 +81,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           phone: businessRes.data.phone || undefined,
           email: businessRes.data.email || undefined,
           address: businessRes.data.address || undefined,
+          dreamBigBook: businessRes.data.dream_big_book as any,
           createdAt: businessRes.data.created_at,
         });
         setHasOnboarded(true);
@@ -316,7 +317,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
               console.log('⚠️ RPC sync had an issue:', rpcErrorMessage);
             }
           }
-        } catch (rpcErr) {
+        } catch {
           // RPC might not be available - that's okay, try other methods
         }
         
@@ -328,7 +329,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
               console.log('✅ User profile found');
               profileExists = true;
             }
-          } catch (readError) {
+          } catch {
             // Can't read - might not exist or RLS blocking
           }
         }
@@ -336,7 +337,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         // Step 3: If still not found, try to create it
         if (!profileExists) {
           try {
-            const profile = await provider.createUserProfile(authUser.id, {
+            await provider.createUserProfile(authUser.id, {
               email: authUser.email,
               name: authUser.metadata?.name || authUser.email.split('@')[0] || 'User',
               isSuperAdmin: false,
@@ -450,6 +451,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           phone: newBusiness.phone || null,
           email: newBusiness.email || null,
           address: newBusiness.address || null,
+          dream_big_book: newBusiness.dreamBigBook || 'none',
       };
 
       // Only include id if we have an existing business with a valid UUID
@@ -500,6 +502,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         phone: data.phone || undefined,
         email: data.email || undefined,
         address: data.address || undefined,
+        dreamBigBook: data.dream_big_book as any,
         createdAt: data.created_at,
       };
 
