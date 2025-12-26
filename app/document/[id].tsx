@@ -1,5 +1,6 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Share as ShareIcon, Download, Mail, FileDown } from 'lucide-react-native';
+import { Share as ShareIcon, Download, Mail, FileDown, Plus, DollarSign, Trash2, X } from 'lucide-react-native';
+import { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -10,23 +11,36 @@ import {
   Platform,
   Share,
   Linking,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Document } from '@/types/business';
 import { getDocumentTemplate, generateDocumentContent } from '@/lib/document-templates';
 import { exportToPDF } from '@/lib/pdf-export';
+import type { Payment } from '@/types/payments';
 
 export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams();
-  const { documents, business } = useBusiness();
+  const { documents, business, getDocumentPayments, getDocumentPaidAmount, addPayment, deletePayment } = useBusiness();
   const { theme } = useTheme();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'bank_transfer' | 'mobile_money' | 'card' | 'other'>('cash');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentReference, setPaymentReference] = useState('');
   
   const document = documents.find(d => d.id === id) as Document | undefined;
   
   const template = business && document 
     ? getDocumentTemplate(document.type, business.type)
     : null;
+
+  const documentPayments = document ? getDocumentPayments(document.id) : [];
+  const paidAmount = document ? getDocumentPaidAmount(document.id) : 0;
+  const outstandingAmount = document ? document.total - paidAmount : 0;
+  const isFullyPaid = document && paidAmount >= document.total;
 
   if (!document) {
     return (
@@ -107,6 +121,60 @@ export default function DocumentDetailScreen() {
     Linking.openURL(mailtoUrl).catch(() => {
       RNAlert.alert('Error', 'Could not open email client');
     });
+  };
+
+  const handleAddPayment = async () => {
+    if (!document) return;
+
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      RNAlert.alert('Invalid Amount', 'Please enter a valid payment amount');
+      return;
+    }
+
+    if (amount > outstandingAmount) {
+      RNAlert.alert('Invalid Amount', `Payment cannot exceed outstanding amount of ${formatCurrency(outstandingAmount)}`);
+      return;
+    }
+
+    try {
+      await addPayment({
+        documentId: document.id,
+        amount,
+        currency: document.currency,
+        paymentDate,
+        paymentMethod,
+        reference: paymentReference || undefined,
+      });
+
+      setShowPaymentModal(false);
+      setPaymentAmount('');
+      setPaymentReference('');
+      RNAlert.alert('Success', 'Payment recorded successfully');
+    } catch (error: any) {
+      RNAlert.alert('Error', error.message || 'Failed to record payment');
+    }
+  };
+
+  const handleDeletePayment = (paymentId: string) => {
+    RNAlert.alert(
+      'Delete Payment',
+      'Are you sure you want to delete this payment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePayment(paymentId);
+            } catch (error: any) {
+              RNAlert.alert('Error', error.message || 'Failed to delete payment');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const docTypeLabel = document.type.charAt(0).toUpperCase() + document.type.slice(1);
