@@ -10,7 +10,10 @@ import {
   Sparkles,
   Activity,
   BarChart3,
-  Search
+  Search,
+  FileText,
+  Package,
+  Users
 } from 'lucide-react-native';
 import { 
   View, 
@@ -30,12 +33,88 @@ import { LineChart, PieChart, BarChart } from '@/components/Charts';
 import GlobalSearch from '@/components/GlobalSearch';
 
 export default function DashboardScreen() {
-  const { business, getDashboardMetrics, transactions } = useBusiness();
+  const { business, getDashboardMetrics, transactions, documents, products } = useBusiness();
   const { theme } = useTheme();
   const metrics = getDashboardMetrics();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const [showSearch, setShowSearch] = useState(false);
+
+  // Calculate business health score (0-100)
+  const healthScore = useMemo(() => {
+    let score = 100;
+    
+    // Deduct points for negative cash position
+    if (metrics.cashPosition < 0) score -= 30;
+    else if (metrics.cashPosition < (business?.capital || 0) * 0.3) score -= 15;
+    
+    // Deduct points for expenses exceeding sales
+    if (metrics.monthExpenses > metrics.monthSales && metrics.monthSales > 0) score -= 25;
+    
+    // Deduct points for low profit margin
+    const profitMargin = metrics.monthSales > 0 
+      ? ((metrics.monthSales - metrics.monthExpenses) / metrics.monthSales) * 100 
+      : 0;
+    if (profitMargin < 10 && profitMargin > 0) score -= 20;
+    else if (profitMargin < 20 && profitMargin > 0) score -= 10;
+    
+    // Deduct points for no sales
+    if (metrics.monthSales === 0 && transactions.length > 0) score -= 20;
+    
+    // Add bonus for good profit margin
+    if (profitMargin > 30) score += 10;
+    
+    return Math.max(0, Math.min(100, score));
+  }, [metrics, business, transactions.length]);
+
+  const getHealthColor = (score: number) => {
+    if (score >= 80) return theme.accent.success;
+    if (score >= 60) return theme.accent.warning;
+    return theme.accent.danger;
+  };
+
+  const getHealthLabel = (score: number) => {
+    if (score >= 80) return 'Excellent';
+    if (score >= 60) return 'Good';
+    if (score >= 40) return 'Fair';
+    return 'Needs Attention';
+  };
+
+  // Recent activity (last 5 transactions and documents)
+  const recentActivity = useMemo(() => {
+    const recentTransactions = transactions
+      .slice(0, 5)
+      .map(t => ({
+        type: 'transaction' as const,
+        id: t.id,
+        title: t.description,
+        subtitle: `${t.type === 'sale' ? 'Sale' : 'Expense'} • ${formatCurrency(t.amount)}`,
+        date: t.date,
+        icon: t.type === 'sale' ? 'arrow-up' : 'arrow-down',
+        color: t.type === 'sale' ? theme.accent.success : theme.accent.danger,
+      }));
+
+    const recentDocuments = documents
+      .slice(0, 3)
+      .map(d => ({
+        type: 'document' as const,
+        id: d.id,
+        title: `${d.documentNumber} - ${d.customerName}`,
+        subtitle: `${d.type} • ${formatCurrency(d.total)}`,
+        date: d.date,
+        icon: 'file-text',
+        color: theme.accent.primary,
+      }));
+
+    return [...recentTransactions, ...recentDocuments]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  }, [transactions, documents, theme]);
+
+  const formatCurrency = (amount: number) => {
+    const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
+    return `${symbol}${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
 
   // Prepare chart data
   const chartData = useMemo(() => {
@@ -249,6 +328,52 @@ export default function DashboardScreen() {
                 </Text>
               </View>
             </LinearGradient>
+          </View>
+
+          {/* Business Health Score */}
+          <View style={[styles.healthCard, { backgroundColor: theme.background.card }]}>
+            <View style={styles.healthHeader}>
+              <Text style={[styles.healthTitle, { color: theme.text.primary }]}>Business Health</Text>
+              <View style={[styles.healthBadge, { backgroundColor: `${getHealthColor(healthScore)}20` }]}>
+                <Text style={[styles.healthBadgeText, { color: getHealthColor(healthScore) }]}>
+                  {getHealthLabel(healthScore)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.healthScoreContainer}>
+              <View style={[styles.healthScoreCircle, { borderColor: getHealthColor(healthScore) }]}>
+                <Text style={[styles.healthScoreValue, { color: getHealthColor(healthScore) }]}>
+                  {healthScore}
+                </Text>
+                <Text style={[styles.healthScoreLabel, { color: theme.text.tertiary }]}>/ 100</Text>
+              </View>
+              <View style={styles.healthIndicators}>
+                <View style={styles.healthIndicator}>
+                  <View style={[
+                    styles.healthIndicatorBar,
+                    { 
+                      backgroundColor: metrics.monthProfit >= 0 ? theme.accent.success : theme.accent.danger,
+                      width: `${Math.min(100, Math.abs(metrics.monthProfit) / Math.max(metrics.monthSales || 1, 1) * 100)}%`
+                    }
+                  ]} />
+                  <Text style={[styles.healthIndicatorLabel, { color: theme.text.secondary }]}>
+                    Profitability
+                  </Text>
+                </View>
+                <View style={styles.healthIndicator}>
+                  <View style={[
+                    styles.healthIndicatorBar,
+                    { 
+                      backgroundColor: metrics.cashPosition >= 0 ? theme.accent.success : theme.accent.danger,
+                      width: `${Math.min(100, Math.max(0, (metrics.cashPosition / Math.max(business?.capital || 1, 1)) * 100))}%`
+                    }
+                  ]} />
+                  <Text style={[styles.healthIndicatorLabel, { color: theme.text.secondary }]}>
+                    Cash Position
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
 
           <View style={styles.monthSection}>
@@ -749,5 +874,139 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: '700' as const,
+  },
+  healthCard: {
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  healthHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  healthTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+  },
+  healthBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  healthBadgeText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  healthScoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 24,
+  },
+  healthScoreCircle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+  },
+  healthScoreValue: {
+    fontSize: 32,
+    fontWeight: '700' as const,
+    lineHeight: 36,
+  },
+  healthScoreLabel: {
+    fontSize: 14,
+    marginTop: -4,
+  },
+  healthIndicators: {
+    flex: 1,
+    gap: 12,
+  },
+  healthIndicator: {
+    gap: 6,
+  },
+  healthIndicatorBar: {
+    height: 6,
+    borderRadius: 3,
+  },
+  healthIndicatorLabel: {
+    fontSize: 12,
+  },
+  quickActionsSection: {
+    marginBottom: 24,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+  },
+  quickActionCard: {
+    width: '47%',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickActionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionLabel: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+  },
+  recentActivitySection: {
+    marginBottom: 24,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    gap: 12,
+  },
+  activityIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
+  activitySubtitle: {
+    fontSize: 12,
+  },
+  activityDate: {
+    fontSize: 11,
   },
 });
