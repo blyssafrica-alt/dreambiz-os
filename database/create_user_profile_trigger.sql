@@ -53,19 +53,26 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION public.sync_user_profile(user_id_param UUID)
 RETURNS void AS $$
 BEGIN
-  INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
-  SELECT 
-    au.id,
-    au.email,
-    COALESCE(au.raw_user_meta_data->>'name', au.email),
-    '',
-    false
-  FROM auth.users au
-  WHERE au.id = user_id_param
-    AND NOT EXISTS (
-      SELECT 1 FROM public.users u WHERE u.id = au.id
-    )
-  ON CONFLICT (id) DO NOTHING;
+  -- Only insert if profile doesn't exist (check by ID first, then by email)
+  -- This prevents duplicate key errors
+  IF NOT EXISTS (
+    SELECT 1 FROM public.users u WHERE u.id = user_id_param
+  ) AND NOT EXISTS (
+    SELECT 1 FROM public.users u 
+    WHERE u.email = (SELECT email FROM auth.users WHERE id = user_id_param)
+  ) THEN
+    INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
+    SELECT 
+      au.id,
+      au.email,
+      COALESCE(au.raw_user_meta_data->>'name', au.email),
+      '',
+      false
+    FROM auth.users au
+    WHERE au.id = user_id_param
+    ON CONFLICT (id) DO NOTHING; -- Handle ID conflicts (primary key)
+  END IF;
+  -- If profile already exists (by ID or email), do nothing - that's fine
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

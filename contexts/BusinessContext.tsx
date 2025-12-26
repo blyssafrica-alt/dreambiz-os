@@ -120,6 +120,8 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       // Note: If a database trigger is set up, the profile should be created automatically
       if (!user && authUser) {
         console.log('User profile not found, checking if it exists...');
+        let profileExists = false; // Track if we know the profile exists (even if we can't read it)
+        
         try {
           const provider = getProvider();
           
@@ -137,6 +139,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
                 isSuperAdmin: false,
               });
               console.log('✅ User profile created');
+              profileExists = true;
             } catch (createError: any) {
               // Extract error message properly
               const createErrorMessage = createError?.message || (typeof createError === 'string' ? createError : JSON.stringify(createError));
@@ -145,58 +148,96 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
               // If RLS blocks it, wait a moment and check if trigger created it
               if (createErrorMessage.includes('row-level security') || createErrorMessage.includes('RLS') || createErrorCode === '42501') {
                 console.log('RLS blocked creation, checking if trigger created profile...');
-                // Wait for trigger to potentially create it
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                profile = await provider.getUserProfile(authUser.id);
+                // Wait for trigger to potentially create it - try multiple times
+                for (let i = 0; i < 3; i++) {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  profile = await provider.getUserProfile(authUser.id);
+                  if (profile) {
+                    console.log('✅ User profile created by database trigger');
+                    profileExists = true;
+                    break;
+                  }
+                }
                 
                 if (!profile) {
                   // Still no profile - trigger might not be set up
                   throw new Error('User profile does not exist and could not be created. Please contact support or ensure the database trigger is configured. See database/create_user_profile_trigger.sql');
-                } else {
-                  console.log('✅ User profile created by database trigger');
                 }
-              } else if (createErrorMessage.includes('duplicate') || createErrorMessage.includes('already exists')) {
-                // Duplicate key - profile was created by another process
-                console.log('Profile already exists (duplicate key), fetching...');
-                profile = await provider.getUserProfile(authUser.id);
+              } else if (createErrorMessage.includes('duplicate key') || 
+                         createErrorMessage.includes('duplicate') || 
+                         createErrorMessage.includes('already exists') ||
+                         createErrorCode === '23505' ||
+                         createErrorMessage.includes('users_email_key') ||
+                         createErrorMessage.includes('users_pkey')) {
+                // Duplicate key - profile EXISTS in database, even if we can't read it
+                profileExists = true;
+                console.log('Profile already exists (duplicate key), attempting to fetch...');
+                // Try multiple times with delays to see if we can read it
+                for (let i = 0; i < 3; i++) {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  profile = await provider.getUserProfile(authUser.id);
+                  if (profile) {
+                    console.log('✅ Profile found after duplicate key error');
+                    break;
+                  }
+                }
+                
+                // If we still can't read it, the profile exists but RLS prevents access
+                // This is okay - we can still proceed with business profile creation
+                // The foreign key constraint will be satisfied because the profile exists in DB
+                if (!profile) {
+                  console.warn('⚠️ Profile exists (duplicate key) but cannot be read due to RLS. Proceeding anyway - foreign key will be satisfied.');
+                }
               } else {
                 throw createError;
               }
             }
           } else {
             console.log('✅ User profile already exists');
-          }
-          
-          // Verify we have a profile now
-          if (!profile) {
-            throw new Error('User profile is required but could not be created or retrieved');
+            profileExists = true;
           }
         } catch (profileError: any) {
-          // If we still don't have a profile, we can't proceed
-          // Extract error message properly to avoid [object Object]
-          let errorMessage = '';
-          if (typeof profileError === 'string') {
-            errorMessage = profileError;
-          } else if (profileError?.message) {
-            errorMessage = profileError.message;
-          } else if (profileError?.toString && typeof profileError.toString === 'function') {
-            errorMessage = profileError.toString();
+          // Check if it's a duplicate key error - if so, profile exists, proceed anyway
+          const errorMessage = profileError?.message || (typeof profileError === 'string' ? profileError : '');
+          if (errorMessage.includes('duplicate key') || 
+              errorMessage.includes('users_email_key') || 
+              errorMessage.includes('users_pkey') ||
+              errorMessage.includes('23505')) {
+            // Duplicate key means profile exists in database
+            profileExists = true;
+            console.warn('⚠️ Duplicate key error - profile exists in database. Proceeding with business profile creation...');
           } else {
-            try {
-              errorMessage = JSON.stringify(profileError, null, 2);
-            } catch {
-              errorMessage = 'Unknown error occurred while creating user profile';
+            // Extract error message properly to avoid [object Object]
+            let errorMsg = '';
+            if (typeof profileError === 'string') {
+              errorMsg = profileError;
+            } else if (profileError?.message) {
+              errorMsg = profileError.message;
+            } else if (profileError?.toString && typeof profileError.toString === 'function') {
+              errorMsg = profileError.toString();
+            } else {
+              try {
+                errorMsg = JSON.stringify(profileError, null, 2);
+              } catch {
+                errorMsg = 'Unknown error occurred while creating user profile';
+              }
             }
+            
+            // Log with proper stringification
+            const errorCode = profileError?.code || '';
+            const errorDetails = profileError?.details || '';
+            console.error('Failed to ensure user profile exists:', errorMsg);
+            if (errorCode) console.error('Error code:', errorCode);
+            if (errorDetails) console.error('Error details:', errorDetails);
+            
+            throw new Error(`Cannot save business profile: ${errorMsg}`);
           }
-          
-          // Log with proper stringification
-          const errorCode = profileError?.code || '';
-          const errorDetails = profileError?.details || '';
-          console.error('Failed to ensure user profile exists:', errorMessage);
-          if (errorCode) console.error('Error code:', errorCode);
-          if (errorDetails) console.error('Error details:', errorDetails);
-          
-          throw new Error(`Cannot save business profile: ${errorMessage}`);
+        }
+        
+        // If we know the profile exists (even if we can't read it), we can proceed
+        // The foreign key constraint will be satisfied
+        if (!profileExists) {
+          throw new Error('User profile is required but could not be created or verified');
         }
       }
       

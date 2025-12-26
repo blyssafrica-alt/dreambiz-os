@@ -157,6 +157,15 @@ export class SupabaseProvider implements IBackendProvider {
         // 406 = Not Acceptable (function might not exist), 42883 = function doesn't exist
         if (rpcErrorCode === '42883' || rpcErrorCode === 'P0001' || rpcErrorMessage.includes('function') || rpcErrorMessage.includes('does not exist')) {
           console.log('RPC function not available (needs to be set up in database)');
+        } else if (rpcErrorMessage.includes('duplicate') || rpcErrorMessage.includes('already exists') || rpcErrorCode === '23505') {
+          // Duplicate key means profile exists - wait and fetch it
+          console.log('RPC detected duplicate (profile may exist), checking...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          existing = await this.getUserProfile(userId);
+          if (existing) {
+            console.log('✅ User profile found after duplicate key error');
+            return existing;
+          }
         } else {
           console.log('RPC function call failed:', rpcErrorMessage);
         }
@@ -188,28 +197,56 @@ export class SupabaseProvider implements IBackendProvider {
       },
     });
 
-    // If insert fails due to RLS, check if it was created by trigger or RPC
+    // If insert fails due to RLS or duplicate key, check if profile exists now
     if (result.error) {
       const errorMessage = result.error?.message || String(result.error);
       const errorCode = (result.error as any)?.code || '';
       
-      // If it's an RLS error or duplicate key, check if profile exists now
-      if (errorMessage.includes('row-level security') || 
-          errorMessage.includes('RLS') || 
-          errorCode === '42501' ||
+      // Handle duplicate key errors - profile might already exist
+      if (errorMessage.includes('duplicate key') || 
           errorMessage.includes('duplicate') ||
-          errorMessage.includes('already exists')) {
+          errorMessage.includes('already exists') ||
+          errorCode === '23505' || // Unique violation
+          errorMessage.includes('users_email_key') ||
+          errorMessage.includes('users_pkey')) {
         
-        // Wait a moment for trigger/RPC to complete, then check again
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        existing = await this.getUserProfile(userId);
-        if (existing) {
-          console.log('✅ User profile created by trigger/RPC after RLS error');
-          return existing;
+        console.log('Duplicate key error detected - profile may already exist, checking...');
+        // Wait and retry multiple times (profile might be created by trigger/RPC)
+        for (let i = 0; i < 3; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          existing = await this.getUserProfile(userId);
+          if (existing) {
+            console.log('✅ User profile found after duplicate key error');
+            return existing;
+          }
         }
+        
+        // If still not found, the profile exists but RLS prevents us from seeing it
+        // This is a critical issue - the trigger/RPC should have created it
+        throw new Error('User profile appears to exist but cannot be accessed. Please ensure the database trigger is set up and RLS policies allow profile access.');
       }
       
-      // Create a better error message
+      // Handle RLS errors - wait for trigger/RPC to create it
+      if (errorMessage.includes('row-level security') || 
+          errorMessage.includes('RLS') || 
+          errorCode === '42501') {
+        
+        console.log('RLS blocked creation, waiting for trigger/RPC to create profile...');
+        // Wait longer and retry multiple times
+        for (let i = 0; i < 3; i++) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          existing = await this.getUserProfile(userId);
+          if (existing) {
+            console.log('✅ User profile created by trigger/RPC after RLS error');
+            return existing;
+          }
+        }
+        
+        // Still not found after waiting
+        throw new Error('User profile could not be created due to RLS restrictions. Please ensure the database trigger is configured (see database/create_user_profile_trigger.sql)');
+      }
+      
+      // For other errors, throw with enhanced message
       const enhancedError = new Error(errorMessage);
       (enhancedError as any).code = errorCode;
       (enhancedError as any).details = (result.error as any)?.details;
