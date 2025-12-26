@@ -117,10 +117,11 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     try {
       // First, ensure the user profile exists in the users table
       // This is required because business_profiles has a foreign key constraint on user_id
-            // Note: If a database trigger is set up, the profile should be created automatically
-            if (!user && authUser) {
-              let profileExists = false; // Track if we know the profile exists (even if we can't read it)
-              let profileExistsButUnreadable = false; // Track if profile exists but RLS prevents reading it
+      // Note: If a database trigger is set up, the profile should be created automatically
+      let profileExists = false; // Track if we know the profile exists (even if we can't read it)
+      let profileExistsButUnreadable = false; // Track if profile exists but RLS prevents reading it
+      
+      if (!user && authUser) {
         
         try {
           const provider = getProvider();
