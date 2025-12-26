@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Alert } from '@/types/business';
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { LineChart, PieChart, BarChart } from '@/components/Charts';
 import GlobalSearch from '@/components/GlobalSearch';
 
