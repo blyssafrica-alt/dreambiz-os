@@ -89,23 +89,7 @@ CREATE POLICY "Users can delete their own suppliers"
   USING (auth.uid() = user_id);
 
 -- ============================================
--- RLS POLICIES FOR PRODUCTS (if not already set)
+-- NOTE: Products RLS policies are already defined in schema.sql
+-- No need to recreate them here
 -- ============================================
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own products"
-  ON products FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own products"
-  ON products FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own products"
-  ON products FOR UPDATE
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete their own products"
-  ON products FOR DELETE
-  USING (auth.uid() = user_id);
 
