@@ -160,9 +160,10 @@ export default function BusinessPlanScreen() {
     
     try {
       if (Platform.OS === 'web') {
-        const blob = new Blob([plan], { type: 'text/plain' });
+        const blob = new Blob([plan], { type: 'text/plain', lastModified: Date.now() });
         const url = URL.createObjectURL(blob);
-        const a = (global as any).document.createElement('a');
+        const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
+        if (!a) throw new Error('Document not available');
         a.href = url;
         a.download = `${business?.name}-Business-Plan.txt`;
         a.click();
