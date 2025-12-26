@@ -28,7 +28,7 @@ CREATE TRIGGER on_auth_user_created
 
 -- Also handle existing users - create a function to sync existing auth users
 CREATE OR REPLACE FUNCTION public.sync_existing_users()
-RETURNS void AS $$
+RETURNS void AS $
 BEGIN
   -- Insert users that don't exist by ID or email
   INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
@@ -37,25 +37,22 @@ BEGIN
     au.email,
     COALESCE(au.raw_user_meta_data->>'name', au.email),
     '',
-    false
+    CASE WHEN au.email = 'nashiezw@gmail.com' THEN true ELSE false END
   FROM auth.users au
   WHERE NOT EXISTS (
     SELECT 1 FROM public.users u WHERE u.id = au.id OR u.email = au.email
   )
-  ON CONFLICT (id) DO NOTHING;
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    name = EXCLUDED.name,
+    is_super_admin = CASE WHEN EXCLUDED.email = 'nashiezw@gmail.com' THEN true ELSE users.is_super_admin END;
   
-  -- Handle email conflicts separately (if email exists but ID is different)
-  -- Update existing records to match auth.users if needed
-  UPDATE public.users u
-  SET 
-    name = COALESCE(au.raw_user_meta_data->>'name', au.email),
-    email = au.email
-  FROM auth.users au
-  WHERE u.email = au.email 
-    AND u.id != au.id
-    AND EXISTS (SELECT 1 FROM auth.users WHERE id = au.id);
+  -- Update super admin status for existing users
+  UPDATE public.users
+  SET is_super_admin = true
+  WHERE email = 'nashiezw@gmail.com' AND is_super_admin = false;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Run this once to sync existing users
 -- SELECT public.sync_existing_users();
