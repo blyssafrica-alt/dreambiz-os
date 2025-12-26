@@ -86,6 +86,63 @@ export interface CashflowProjection {
   createdAt: string;
 }
 
+export interface TaxRate {
+  id: string;
+  name: string;
+  type: 'VAT' | 'sales_tax' | 'income_tax' | 'custom';
+  rate: number;
+  isDefault: boolean;
+  isActive: boolean;
+  appliesTo?: 'all' | 'products' | 'services' | 'custom';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  position?: string;
+  hireDate?: string;
+  salary?: number;
+  currency?: Currency;
+  isActive: boolean;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  clientName?: string;
+  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
+  startDate?: string;
+  endDate?: string;
+  budget?: number;
+  currency?: Currency;
+  progress: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjectTask {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  dueDate?: string;
+  assignedTo?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DocumentItem {
   id: string;
   description: string;

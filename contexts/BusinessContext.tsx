@@ -12,7 +12,13 @@ import type {
   Alert,
   Product,
   Customer,
-  Supplier
+  Supplier,
+  Budget,
+  CashflowProjection,
+  TaxRate,
+  Employee,
+  Project,
+  ProjectTask
 } from '@/types/business';
 
 export const [BusinessContext, useBusiness] = createContextHook(() => {
@@ -25,6 +31,10 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [cashflowProjections, setCashflowProjections] = useState<CashflowProjection[]>([]);
+  const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate>({
     usdToZwl: 25000,
     lastUpdated: new Date().toISOString(),
@@ -42,7 +52,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
 
     try {
-      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, budgetsRes, cashflowRes, exchangeRateRes] = await Promise.all([
+      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, budgetsRes, cashflowRes, taxRatesRes, employeesRes, projectsRes, projectTasksRes, exchangeRateRes] = await Promise.all([
         supabase.from('business_profiles').select('*').eq('user_id', userId).single(),
         supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
         supabase.from('documents').select('*').eq('user_id', userId).order('date', { ascending: false }),
@@ -51,6 +61,10 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         supabase.from('suppliers').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('budgets').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('cashflow_projections').select('*').eq('user_id', userId).order('month', { ascending: true }),
+        supabase.from('tax_rates').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('employees').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('projects').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('project_tasks').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('exchange_rates').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
@@ -180,6 +194,71 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           currency: c.currency as any,
           notes: c.notes || undefined,
           createdAt: c.created_at,
+        })));
+      }
+
+      if (taxRatesRes.data) {
+        setTaxRates(taxRatesRes.data.map(t => ({
+          id: t.id,
+          name: t.name,
+          type: t.type as any,
+          rate: Number(t.rate),
+          isDefault: t.is_default,
+          isActive: t.is_active,
+          appliesTo: t.applies_to as any,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+        })));
+      }
+
+      if (employeesRes.data) {
+        setEmployees(employeesRes.data.map(e => ({
+          id: e.id,
+          name: e.name,
+          email: e.email || undefined,
+          phone: e.phone || undefined,
+          role: e.role || undefined,
+          position: e.position || undefined,
+          hireDate: e.hire_date || undefined,
+          salary: e.salary ? Number(e.salary) : undefined,
+          currency: e.currency as any,
+          isActive: e.is_active,
+          notes: e.notes || undefined,
+          createdAt: e.created_at,
+          updatedAt: e.updated_at,
+        })));
+      }
+
+      if (projectsRes.data) {
+        setProjects(projectsRes.data.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || undefined,
+          clientName: p.client_name || undefined,
+          status: p.status as any,
+          startDate: p.start_date || undefined,
+          endDate: p.end_date || undefined,
+          budget: p.budget ? Number(p.budget) : undefined,
+          currency: p.currency as any,
+          progress: p.progress,
+          notes: p.notes || undefined,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        })));
+      }
+
+      if (projectTasksRes.data) {
+        setProjectTasks(projectTasksRes.data.map(t => ({
+          id: t.id,
+          projectId: t.project_id,
+          title: t.title,
+          description: t.description || undefined,
+          status: t.status as any,
+          priority: t.priority as any,
+          dueDate: t.due_date || undefined,
+          assignedTo: t.assigned_to || undefined,
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
         })));
       }
 
@@ -1214,6 +1293,389 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
   };
 
+  // Tax Rates Management
+  const addTaxRate = async (taxRate: Omit<TaxRate, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      // If this is default, unset other defaults
+      if (taxRate.isDefault) {
+        await supabase
+          .from('tax_rates')
+          .update({ is_default: false })
+          .eq('user_id', userId)
+          .eq('is_default', true);
+      }
+
+      const { data, error } = await supabase
+        .from('tax_rates')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: taxRate.name,
+          type: taxRate.type,
+          rate: taxRate.rate,
+          is_default: taxRate.isDefault,
+          is_active: taxRate.isActive,
+          applies_to: taxRate.appliesTo || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newTaxRate: TaxRate = {
+        id: data.id,
+        name: data.name,
+        type: data.type as any,
+        rate: Number(data.rate),
+        isDefault: data.is_default,
+        isActive: data.is_active,
+        appliesTo: data.applies_to as any,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setTaxRates([newTaxRate, ...taxRates]);
+    } catch (error) {
+      console.error('Failed to add tax rate:', error);
+      throw error;
+    }
+  };
+
+  const updateTaxRate = async (id: string, updates: Partial<TaxRate>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.type !== undefined) updateData.type = updates.type;
+      if (updates.rate !== undefined) updateData.rate = updates.rate;
+      if (updates.isDefault !== undefined) {
+        updateData.is_default = updates.isDefault;
+        // If setting as default, unset others
+        if (updates.isDefault) {
+          await supabase
+            .from('tax_rates')
+            .update({ is_default: false })
+            .eq('user_id', userId)
+            .eq('is_default', true)
+            .neq('id', id);
+        }
+      }
+      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+      if (updates.appliesTo !== undefined) updateData.applies_to = updates.appliesTo || null;
+
+      const { error } = await supabase
+        .from('tax_rates')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = taxRates.map(t => 
+        t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+      );
+      setTaxRates(updated);
+    } catch (error) {
+      console.error('Failed to update tax rate:', error);
+      throw error;
+    }
+  };
+
+  const deleteTaxRate = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('tax_rates')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTaxRates(taxRates.filter(t => t.id !== id));
+    } catch (error) {
+      console.error('Failed to delete tax rate:', error);
+      throw error;
+    }
+  };
+
+  // Employees Management
+  const addEmployee = async (employee: Omit<Employee, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: employee.name,
+          email: employee.email || null,
+          phone: employee.phone || null,
+          role: employee.role || null,
+          position: employee.position || null,
+          hire_date: employee.hireDate || null,
+          salary: employee.salary || null,
+          currency: employee.currency || null,
+          is_active: employee.isActive,
+          notes: employee.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newEmployee: Employee = {
+        id: data.id,
+        name: data.name,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        role: data.role || undefined,
+        position: data.position || undefined,
+        hireDate: data.hire_date || undefined,
+        salary: data.salary ? Number(data.salary) : undefined,
+        currency: data.currency as any,
+        isActive: data.is_active,
+        notes: data.notes || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setEmployees([newEmployee, ...employees]);
+    } catch (error) {
+      console.error('Failed to add employee:', error);
+      throw error;
+    }
+  };
+
+  const updateEmployee = async (id: string, updates: Partial<Employee>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.email !== undefined) updateData.email = updates.email || null;
+      if (updates.phone !== undefined) updateData.phone = updates.phone || null;
+      if (updates.role !== undefined) updateData.role = updates.role || null;
+      if (updates.position !== undefined) updateData.position = updates.position || null;
+      if (updates.hireDate !== undefined) updateData.hire_date = updates.hireDate || null;
+      if (updates.salary !== undefined) updateData.salary = updates.salary || null;
+      if (updates.currency !== undefined) updateData.currency = updates.currency || null;
+      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+      if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+
+      const { error } = await supabase
+        .from('employees')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = employees.map(e => 
+        e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e
+      );
+      setEmployees(updated);
+    } catch (error) {
+      console.error('Failed to update employee:', error);
+      throw error;
+    }
+  };
+
+  const deleteEmployee = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setEmployees(employees.filter(e => e.id !== id));
+    } catch (error) {
+      console.error('Failed to delete employee:', error);
+      throw error;
+    }
+  };
+
+  // Projects Management
+  const addProject = async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: project.name,
+          description: project.description || null,
+          client_name: project.clientName || null,
+          status: project.status,
+          start_date: project.startDate || null,
+          end_date: project.endDate || null,
+          budget: project.budget || null,
+          currency: project.currency || null,
+          progress: project.progress,
+          notes: project.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newProject: Project = {
+        id: data.id,
+        name: data.name,
+        description: data.description || undefined,
+        clientName: data.client_name || undefined,
+        status: data.status as any,
+        startDate: data.start_date || undefined,
+        endDate: data.end_date || undefined,
+        budget: data.budget ? Number(data.budget) : undefined,
+        currency: data.currency as any,
+        progress: data.progress,
+        notes: data.notes || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setProjects([newProject, ...projects]);
+    } catch (error) {
+      console.error('Failed to add project:', error);
+      throw error;
+    }
+  };
+
+  const updateProject = async (id: string, updates: Partial<Project>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.description !== undefined) updateData.description = updates.description || null;
+      if (updates.clientName !== undefined) updateData.client_name = updates.clientName || null;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.startDate !== undefined) updateData.start_date = updates.startDate || null;
+      if (updates.endDate !== undefined) updateData.end_date = updates.endDate || null;
+      if (updates.budget !== undefined) updateData.budget = updates.budget || null;
+      if (updates.currency !== undefined) updateData.currency = updates.currency || null;
+      if (updates.progress !== undefined) updateData.progress = updates.progress;
+      if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+
+      const { error } = await supabase
+        .from('projects')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = projects.map(p => 
+        p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
+      );
+      setProjects(updated);
+    } catch (error) {
+      console.error('Failed to update project:', error);
+      throw error;
+    }
+  };
+
+  const deleteProject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setProjects(projects.filter(p => p.id !== id));
+      // Also delete associated tasks
+      setProjectTasks(projectTasks.filter(t => t.projectId !== id));
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+      throw error;
+    }
+  };
+
+  // Project Tasks Management
+  const addProjectTask = async (task: Omit<ProjectTask, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId) throw new Error('User not authenticated');
+
+    try {
+      const { data, error } = await supabase
+        .from('project_tasks')
+        .insert({
+          project_id: task.projectId,
+          user_id: userId,
+          title: task.title,
+          description: task.description || null,
+          status: task.status,
+          priority: task.priority,
+          due_date: task.dueDate || null,
+          assigned_to: task.assignedTo || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newTask: ProjectTask = {
+        id: data.id,
+        projectId: data.project_id,
+        title: data.title,
+        description: data.description || undefined,
+        status: data.status as any,
+        priority: data.priority as any,
+        dueDate: data.due_date || undefined,
+        assignedTo: data.assigned_to || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setProjectTasks([newTask, ...projectTasks]);
+    } catch (error) {
+      console.error('Failed to add project task:', error);
+      throw error;
+    }
+  };
+
+  const updateProjectTask = async (id: string, updates: Partial<ProjectTask>) => {
+    try {
+      const updateData: any = {};
+      if (updates.title !== undefined) updateData.title = updates.title;
+      if (updates.description !== undefined) updateData.description = updates.description || null;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.priority !== undefined) updateData.priority = updates.priority;
+      if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate || null;
+      if (updates.assignedTo !== undefined) updateData.assigned_to = updates.assignedTo || null;
+
+      const { error } = await supabase
+        .from('project_tasks')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = projectTasks.map(t => 
+        t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
+      );
+      setProjectTasks(updated);
+    } catch (error) {
+      console.error('Failed to update project task:', error);
+      throw error;
+    }
+  };
+
+  const deleteProjectTask = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('project_tasks')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setProjectTasks(projectTasks.filter(t => t.id !== id));
+    } catch (error) {
+      console.error('Failed to delete project task:', error);
+      throw error;
+    }
+  };
+
   return {
     business,
     transactions,
@@ -1223,6 +1685,10 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     suppliers,
     budgets,
     cashflowProjections,
+    taxRates,
+    employees,
+    projects,
+    projectTasks,
     exchangeRate,
     isLoading,
     hasOnboarded,
@@ -1247,6 +1713,18 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     addCashflowProjection,
     updateCashflowProjection,
     deleteCashflowProjection,
+    addTaxRate,
+    updateTaxRate,
+    deleteTaxRate,
+    addEmployee,
+    updateEmployee,
+    deleteEmployee,
+    addProject,
+    updateProject,
+    deleteProject,
+    addProjectTask,
+    updateProjectTask,
+    deleteProjectTask,
     updateExchangeRate,
     getDashboardMetrics,
   };
