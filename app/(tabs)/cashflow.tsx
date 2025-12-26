@@ -8,9 +8,11 @@ import {
   Calendar,
   X,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  BarChart3
 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { LineChart, BarChart } from '@/components/Charts';
 import {
   View,
   Text,
@@ -152,6 +154,63 @@ export default function CashflowScreen() {
       </View>
 
       <ScrollView style={styles.scrollView}>
+        {/* Cashflow Charts */}
+        {cashflowProjections.length > 0 && (
+          <>
+            <View style={[styles.chartCard, { backgroundColor: theme.background.card }]}>
+              <View style={styles.chartHeader}>
+                <BarChart3 size={20} color={theme.accent.primary} />
+                <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Income vs Expenses</Text>
+              </View>
+              {chartData.labels.length > 0 && (
+                <BarChart
+                  data={chartData.income.map((inc, i) => ({
+                    label: chartData.labels[i],
+                    value: inc,
+                    color: theme.accent.success,
+                  }))}
+                  secondaryData={chartData.expenses.map((exp, i) => ({
+                    label: chartData.labels[i],
+                    value: exp,
+                    color: theme.accent.danger,
+                  }))}
+                  height={200}
+                />
+              )}
+            </View>
+
+            <View style={[styles.chartCard, { backgroundColor: theme.background.card }]}>
+              <View style={styles.chartHeader}>
+                <TrendingUp size={20} color={theme.accent.primary} />
+                <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Net Cashflow Trend</Text>
+              </View>
+              {chartData.netCashflow.some(v => v !== 0) && (
+                <LineChart
+                  data={chartData.netCashflow}
+                  labels={chartData.labels}
+                  color={theme.accent.primary}
+                  height={180}
+                />
+              )}
+            </View>
+
+            <View style={[styles.chartCard, { backgroundColor: theme.background.card }]}>
+              <View style={styles.chartHeader}>
+                <TrendingUp size={20} color={theme.accent.info} />
+                <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Closing Balance Trend</Text>
+              </View>
+              {chartData.closingBalances.some(v => v !== 0) && (
+                <LineChart
+                  data={chartData.closingBalances}
+                  labels={chartData.labels}
+                  color={theme.accent.info}
+                  height={180}
+                />
+              )}
+            </View>
+          </>
+        )}
+
         {cashflowProjections.length === 0 ? (
           <View style={styles.emptyState}>
             <TrendingUp size={48} color={theme.text.tertiary} />

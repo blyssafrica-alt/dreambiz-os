@@ -9,7 +9,12 @@ import {
   Phone,
   Mail,
   MapPin,
-  User
+  User,
+  Eye,
+  FileText,
+  DollarSign,
+  TrendingUp,
+  Clock
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
 import {
@@ -28,7 +33,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import type { Supplier } from '@/types/business';
 
 export default function SuppliersScreen() {
-  const { business, suppliers, addSupplier, updateSupplier, deleteSupplier } = useBusiness();
+  const { business, suppliers, documents, addSupplier, updateSupplier, deleteSupplier } = useBusiness();
   const { theme } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -40,6 +45,8 @@ export default function SuppliersScreen() {
   const [paymentTerms, setPaymentTerms] = useState('');
   const [notes, setNotes] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [showSupplierDetail, setShowSupplierDetail] = useState(false);
 
   const filteredSuppliers = useMemo(() => {
     if (!searchQuery) return suppliers;
@@ -50,6 +57,53 @@ export default function SuppliersScreen() {
       s.contactPerson?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [suppliers, searchQuery]);
+
+  // Supplier analytics
+  const supplierAnalytics = useMemo(() => {
+    if (!selectedSupplier) return null;
+
+    // Find purchase orders and supplier agreements for this supplier
+    const supplierDocs = documents.filter(doc =>
+      (doc.type === 'purchase_order' || doc.type === 'supplier_agreement') &&
+      (doc.customerName.toLowerCase() === selectedSupplier.name.toLowerCase() ||
+       (selectedSupplier.email && doc.customerEmail?.toLowerCase() === selectedSupplier.email.toLowerCase()) ||
+       (selectedSupplier.phone && doc.customerPhone === selectedSupplier.phone))
+    );
+
+    // Calculate total spend
+    const totalSpend = supplierDocs.reduce((sum, doc) => sum + doc.total, 0);
+
+    // Order history
+    const orderHistory = supplierDocs
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 10);
+
+    // Average order value
+    const avgOrderValue = supplierDocs.length > 0 
+      ? totalSpend / supplierDocs.length 
+      : 0;
+
+    // Last order date
+    const lastOrder = supplierDocs.length > 0
+      ? supplierDocs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0].date
+      : null;
+
+    // On-time delivery rate (would need delivery tracking, for now use paid status as proxy)
+    const paidOrders = supplierDocs.filter(d => d.status === 'paid');
+    const deliveryRate = supplierDocs.length > 0 
+      ? (paidOrders.length / supplierDocs.length) * 100 
+      : 0;
+
+    return {
+      totalSpend,
+      orderHistory,
+      avgOrderValue,
+      totalOrders: supplierDocs.length,
+      lastOrder,
+      deliveryRate,
+      paidOrders: paidOrders.length,
+    };
+  }, [selectedSupplier, documents]);
 
   const handleSave = async () => {
     if (!name) {
@@ -288,6 +342,91 @@ export default function SuppliersScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Supplier Detail Modal */}
+      <Modal visible={showSupplierDetail} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
+                {selectedSupplier?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setShowSupplierDetail(false)}>
+                <X size={24} color={theme.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {supplierAnalytics && (
+                <>
+                  {/* Supplier Stats */}
+                  <View style={[styles.statsCard, { backgroundColor: theme.background.secondary }]}>
+                    <View style={styles.statsGrid}>
+                      <View style={styles.statItem}>
+                        <DollarSign size={20} color={theme.accent.primary} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {formatCurrency(supplierAnalytics.totalSpend)}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Total Spend</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <FileText size={20} color={theme.accent.info} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {supplierAnalytics.totalOrders}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Total Orders</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <TrendingUp size={20} color={theme.accent.success} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {formatCurrency(supplierAnalytics.avgOrderValue)}
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Avg Order</Text>
+                      </View>
+                      <View style={styles.statItem}>
+                        <Clock size={20} color={theme.accent.info} />
+                        <Text style={[styles.statValue, { color: theme.text.primary }]}>
+                          {supplierAnalytics.deliveryRate.toFixed(0)}%
+                        </Text>
+                        <Text style={[styles.statLabel, { color: theme.text.secondary }]}>Delivery Rate</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Order History */}
+                  {supplierAnalytics.orderHistory.length > 0 && (
+                    <View style={styles.section}>
+                      <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Order History</Text>
+                      {supplierAnalytics.orderHistory.map((doc) => (
+                        <View key={doc.id} style={[styles.historyItem, { backgroundColor: theme.background.secondary }]}>
+                          <View style={styles.historyLeft}>
+                            <Text style={[styles.historyDocNumber, { color: theme.text.primary }]}>
+                              {doc.documentNumber}
+                            </Text>
+                            <Text style={[styles.historyDate, { color: theme.text.secondary }]}>
+                              {new Date(doc.date).toLocaleDateString()}
+                            </Text>
+                          </View>
+                          <View style={styles.historyRight}>
+                            <Text style={[styles.historyAmount, { color: theme.accent.primary }]}>
+                              {formatCurrency(doc.total)}
+                            </Text>
+                            <View style={[styles.historyStatus, { backgroundColor: doc.status === 'paid' ? '#D1FAE5' : '#FEE2E2' }]}>
+                              <Text style={[styles.historyStatusText, { color: doc.status === 'paid' ? '#065F46' : '#991B1B' }]}>
+                                {doc.status}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Add/Edit Modal */}
       <Modal
