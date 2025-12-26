@@ -11,6 +11,7 @@ import {
   Activity,
   BarChart3,
   Search,
+  HelpCircle,
   FileText,
   Package,
   Users

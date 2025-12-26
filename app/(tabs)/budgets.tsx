@@ -334,6 +334,136 @@ export default function BudgetsScreen() {
         )}
       </ScrollView>
 
+      {/* Budget Templates Modal */}
+      <Modal visible={showTemplateModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text.primary }]}>Budget Templates</Text>
+              <TouchableOpacity onPress={() => setShowTemplateModal(false)}>
+                <X size={24} color={theme.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <Text style={[styles.templateDescription, { color: theme.text.secondary }]}>
+                Select a template to quickly create a budget based on your business type
+              </Text>
+              {getBudgetTemplatesForBusinessType(business?.type).map(template => (
+                <TouchableOpacity
+                  key={template.id}
+                  style={[styles.templateCard, { backgroundColor: theme.background.secondary }]}
+                  onPress={() => {
+                    const today = new Date();
+                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    
+                    setName(template.name);
+                    setStartDate(monthStart.toISOString().split('T')[0]);
+                    setEndDate(monthEnd.toISOString().split('T')[0]);
+                    setCategories(template.categories.map(cat => ({ category: cat.category, budgeted: '' })));
+                    setShowTemplateModal(false);
+                    setShowModal(true);
+                  }}
+                >
+                  <Text style={[styles.templateName, { color: theme.text.primary }]}>{template.name}</Text>
+                  <Text style={[styles.templateDesc, { color: theme.text.secondary }]}>{template.description}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Budget Detail Modal */}
+      <Modal visible={showBudgetDetail} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background.card }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: theme.text.primary }]}>
+                {selectedBudget?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setShowBudgetDetail(false)}>
+                <X size={24} color={theme.text.tertiary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {selectedBudget && (() => {
+                const performance = getBudgetPerformance(selectedBudget);
+                const categoryData = selectedBudget.categories.map(cat => {
+                  const categorySpent = transactions
+                    .filter(t => t.category === cat.category && t.type === 'expense' && 
+                      t.date >= selectedBudget.startDate && t.date <= selectedBudget.endDate)
+                    .reduce((sum, t) => sum + t.amount, 0);
+                  return {
+                    category: cat.category,
+                    budgeted: cat.budgeted,
+                    spent: categorySpent,
+                    percentage: cat.budgeted > 0 ? (categorySpent / cat.budgeted) * 100 : 0,
+                  };
+                });
+
+                return (
+                  <>
+                    {/* Budget vs Actual Chart */}
+                    {categoryData.length > 0 && (
+                      <View style={[styles.chartCard, { backgroundColor: theme.background.secondary }]}>
+                        <View style={styles.chartHeader}>
+                          <BarChart3 size={20} color={theme.accent.primary} />
+                          <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Budget vs Actual</Text>
+                        </View>
+                        <BarChart
+                          data={categoryData.map(cat => ({
+                            label: cat.category,
+                            value: cat.budgeted,
+                            color: theme.accent.primary,
+                          }))}
+                          secondaryData={categoryData.map(cat => ({
+                            label: cat.category,
+                            value: cat.spent,
+                            color: cat.spent > cat.budgeted ? theme.accent.danger : theme.accent.success,
+                          }))}
+                          height={200}
+                        />
+                      </View>
+                    )}
+
+                    {/* Category Breakdown */}
+                    <View style={styles.section}>
+                      <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Category Breakdown</Text>
+                      {categoryData.map((cat, i) => (
+                        <View key={i} style={[styles.categoryDetailItem, { backgroundColor: theme.background.secondary }]}>
+                          <View style={styles.categoryDetailHeader}>
+                            <Text style={[styles.categoryDetailName, { color: theme.text.primary }]}>
+                              {cat.category}
+                            </Text>
+                            <Text style={[styles.categoryDetailAmount, { color: cat.spent > cat.budgeted ? theme.accent.danger : theme.text.primary }]}>
+                              {formatCurrency(cat.spent)} / {formatCurrency(cat.budgeted)}
+                            </Text>
+                          </View>
+                          <View style={[styles.categoryProgressBar, { backgroundColor: theme.background.card }]}>
+                            <View
+                              style={[styles.categoryProgressFill, {
+                                width: `${Math.min(cat.percentage, 100)}%`,
+                                backgroundColor: cat.spent > cat.budgeted ? theme.accent.danger : cat.percentage > 80 ? theme.accent.warning : theme.accent.success,
+                              }]}
+                            />
+                          </View>
+                          <Text style={[styles.categoryPercentage, { color: theme.text.tertiary }]}>
+                            {cat.percentage.toFixed(1)}%
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Add/Edit Modal */}
       <Modal
         visible={showModal}
@@ -752,6 +882,79 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  templateDescription: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  templateCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  templateName: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  templateDesc: {
+    fontSize: 14,
+  },
+  chartCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 12,
+  },
+  categoryDetailItem: {
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  categoryDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryDetailName: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  categoryDetailAmount: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  categoryProgressBar: {
+    height: 6,
+    borderRadius: 3,
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  categoryProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  categoryPercentage: {
+    fontSize: 12,
   },
 });
 
