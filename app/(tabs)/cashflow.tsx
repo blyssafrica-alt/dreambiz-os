@@ -134,6 +134,31 @@ export default function CashflowScreen() {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
+  // Prepare chart data from projections
+  const chartData = useMemo(() => {
+    if (cashflowProjections.length === 0) {
+      return {
+        labels: [],
+        income: [],
+        expenses: [],
+        netCashflow: [],
+        closingBalances: [],
+      };
+    }
+
+    const sortedProjections = [...cashflowProjections].sort((a, b) => 
+      a.month.localeCompare(b.month)
+    );
+
+    return {
+      labels: sortedProjections.map(p => formatMonth(p.month)),
+      income: sortedProjections.map(p => p.projectedIncome),
+      expenses: sortedProjections.map(p => p.projectedExpenses),
+      netCashflow: sortedProjections.map(p => p.projectedIncome - p.projectedExpenses),
+      closingBalances: sortedProjections.map(p => p.closingBalance),
+    };
+  }, [cashflowProjections]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background.secondary }]}>
       <Stack.Screen options={{ title: 'Cashflow', headerShown: false }} />

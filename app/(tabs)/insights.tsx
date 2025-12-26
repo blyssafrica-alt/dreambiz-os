@@ -35,6 +35,11 @@ export default function InsightsScreen() {
   const { business, transactions, documents, products, customers, budgets } = useBusiness();
   const { theme } = useTheme();
 
+  const formatCurrency = (amount: number) => {
+    const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
+    return `${symbol}${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
+
   const insights = useMemo(() => {
     const result: Insight[] = [];
     const now = new Date();
@@ -205,12 +210,7 @@ export default function InsightsScreen() {
     // Sort by priority
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-  }, [transactions, products, budgets, customers, business]);
-
-  const formatCurrency = (amount: number) => {
-    const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
-    return `${symbol}${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-  };
+  }, [transactions, products, budgets, customers, business, formatCurrency]);
 
   const getInsightIcon = (type: Insight['type']) => {
     switch (type) {
