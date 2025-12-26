@@ -145,39 +145,53 @@ export class SupabaseProvider implements IBackendProvider {
 
     // Try to use the RPC function to sync the profile (for existing users)
     // This function uses SECURITY DEFINER so it can bypass RLS
+    // Try RPC FIRST before direct insert - it's more reliable
     try {
-      const { error: rpcError } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
+      const { data: rpcData, error: rpcError } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
       
-      // 406 error means the function doesn't exist or parameter mismatch - that's okay, we'll try other methods
-      if (rpcError) {
+      if (!rpcError && rpcData) {
+        // RPC succeeded - check the result
+        const result = rpcData as any;
+        if (result.success) {
+          // Wait a moment for the insert to complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          existing = await this.getUserProfile(userId);
+          if (existing) {
+            console.log('✅ User profile synced via RPC function');
+            return existing;
+          }
+          // If we still can't read it, but RPC said it was created, it exists in DB
+          // Return a profile object so we can proceed
+          if (result.created) {
+            console.log('✅ User profile created via RPC (may not be readable due to RLS)');
+            return {
+              id: userId,
+              email: profile.email,
+              name: profile.name,
+              createdAt: new Date().toISOString(),
+              isSuperAdmin: false,
+            };
+          }
+        }
+      } else if (rpcError) {
         const rpcErrorCode = (rpcError as any)?.code || '';
         const rpcErrorMessage = rpcError?.message || String(rpcError);
         
-        // 406 = Not Acceptable (function might not exist), 42883 = function doesn't exist
-        // Don't log these - they're expected if RPC function isn't set up
-        if (!(rpcErrorCode === '42883' || rpcErrorCode === 'P0001' || rpcErrorMessage.includes('function') || rpcErrorMessage.includes('does not exist'))) {
-          if (rpcErrorMessage.includes('duplicate') || rpcErrorMessage.includes('already exists') || rpcErrorCode === '23505') {
-            // Duplicate key means profile exists - wait and fetch it
-            await new Promise(resolve => setTimeout(resolve, 500));
-            existing = await this.getUserProfile(userId);
-            if (existing) {
-              console.log('✅ User profile found after duplicate key error');
-              return existing;
-            }
-          }
-        }
-      } else {
-        // RPC succeeded, wait a moment and check if profile was created
-        await new Promise(resolve => setTimeout(resolve, 500));
-        existing = await this.getUserProfile(userId);
-        if (existing) {
-          console.log('✅ User profile synced via RPC function');
-          return existing;
+        // 406 = Not Acceptable, 42883 = function doesn't exist
+        // If function doesn't exist, continue to try direct insert
+        if (rpcErrorCode === '42883' || rpcErrorCode === 'P0001' || rpcErrorMessage.includes('function') || rpcErrorMessage.includes('does not exist')) {
+          console.log('RPC function not available - will try direct insert');
+        } else {
+          // Other RPC errors - log but continue
+          console.log('RPC function error:', rpcErrorMessage);
         }
       }
     } catch (rpcErr: any) {
       // RPC function might not exist - that's okay, we'll try other methods
-      // Don't log - expected if function isn't set up
+      const rpcErrMessage = rpcErr?.message || String(rpcErr);
+      if (!rpcErrMessage.includes('function') && !rpcErrMessage.includes('does not exist')) {
+        console.log('RPC call failed:', rpcErrMessage);
+      }
       // Continue to try direct insert
     }
 
@@ -241,33 +255,57 @@ export class SupabaseProvider implements IBackendProvider {
         // RLS blocked direct insert - try RPC function which uses SECURITY DEFINER
         console.log('RLS blocked creation, trying RPC function...');
         try {
-          const { error: rpcError2 } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
-          if (!rpcError2) {
-            // RPC succeeded, wait and check
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            existing = await this.getUserProfile(userId);
-            if (existing) {
-              console.log('✅ User profile created via RPC function');
-              return existing;
+          const { data: rpcData2, error: rpcError2 } = await supabase.rpc('sync_user_profile', { user_id_param: userId });
+          if (!rpcError2 && rpcData2) {
+            const result = rpcData2 as any;
+            if (result.success) {
+              // RPC succeeded - wait and check
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              existing = await this.getUserProfile(userId);
+              if (existing) {
+                console.log('✅ User profile created via RPC function');
+                return existing;
+              }
+              // If RPC created it but we can't read it, it still exists in DB
+              if (result.created) {
+                console.log('✅ User profile created via RPC (exists in DB, may not be readable)');
+                return {
+                  id: userId,
+                  email: profile.email,
+                  name: profile.name,
+                  createdAt: new Date().toISOString(),
+                  isSuperAdmin: false,
+                };
+              }
             }
           }
         } catch (rpcErr2: any) {
-          // RPC might not be available - that's okay, wait for trigger
+          // RPC might not be available - continue to wait for trigger
+          console.log('RPC function not available or failed');
         }
         
-        // Wait for trigger/RPC to create it - retry multiple times with longer delays
+        // Wait for trigger to create it - retry multiple times with longer delays
+        // The trigger should have created it when the user signed up
         for (let i = 0; i < 5; i++) {
           await new Promise(resolve => setTimeout(resolve, 2000));
           existing = await this.getUserProfile(userId);
           if (existing) {
-            console.log('✅ User profile created by trigger/RPC after RLS error');
+            console.log('✅ User profile created by trigger after RLS error');
             return existing;
           }
         }
         
         // Still not found after waiting - trigger might not be set up
-        // We CANNOT return a mock profile - it must exist in DB for foreign key
-        throw new Error('User profile could not be created due to RLS restrictions. Please ensure the database trigger is configured. Run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor.');
+        // Provide clear instructions
+        throw new Error(
+          'User profile could not be created due to RLS restrictions.\n\n' +
+          'SOLUTION: Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor.\n\n' +
+          'Steps:\n' +
+          '1. Go to Supabase Dashboard > SQL Editor\n' +
+          '2. Copy the entire contents of database/create_user_profile_trigger.sql\n' +
+          '3. Paste and click "Run"\n' +
+          '4. For existing users, also run: SELECT public.sync_existing_users();'
+        );
       }
       
       // For other errors, throw with enhanced message

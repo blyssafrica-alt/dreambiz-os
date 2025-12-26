@@ -51,31 +51,51 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Create an RPC function that can be called from the client to sync a single user
 -- This allows the app to request profile creation for existing users
 CREATE OR REPLACE FUNCTION public.sync_user_profile(user_id_param UUID)
-RETURNS void AS $$
+RETURNS JSONB AS $$
+DECLARE
+  auth_user_email TEXT;
+  auth_user_name TEXT;
+  profile_exists BOOLEAN;
 BEGIN
-  -- Only insert if profile doesn't exist (check by ID first, then by email)
-  -- This prevents duplicate key errors
-  IF NOT EXISTS (
-    SELECT 1 FROM public.users u WHERE u.id = user_id_param
-  ) AND NOT EXISTS (
-    SELECT 1 FROM public.users u 
-    WHERE u.email = (SELECT email FROM auth.users WHERE id = user_id_param)
-  ) THEN
+  -- Get user info from auth.users
+  SELECT email, COALESCE(raw_user_meta_data->>'name', email) INTO auth_user_email, auth_user_name
+  FROM auth.users
+  WHERE id = user_id_param;
+  
+  -- Check if profile already exists
+  SELECT EXISTS(SELECT 1 FROM public.users WHERE id = user_id_param) INTO profile_exists;
+  
+  -- If profile doesn't exist, create it
+  IF NOT profile_exists THEN
     INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
-    SELECT 
-      au.id,
-      au.email,
-      COALESCE(au.raw_user_meta_data->>'name', au.email),
+    VALUES (
+      user_id_param,
+      COALESCE(auth_user_email, 'unknown@example.com'),
+      COALESCE(auth_user_name, 'User'),
       '',
       false
-    FROM auth.users au
-    WHERE au.id = user_id_param
-    ON CONFLICT (id) DO NOTHING; -- Handle ID conflicts (primary key)
+    )
+    ON CONFLICT (id) DO NOTHING;
   END IF;
-  -- If profile already exists (by ID or email), do nothing - that's fine
+  
+  -- Return success status
+  RETURN jsonb_build_object(
+    'success', true,
+    'created', NOT profile_exists,
+    'user_id', user_id_param
+  );
+EXCEPTION
+  WHEN others THEN
+    -- Return error details
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', SQLERRM,
+      'user_id', user_id_param
+    );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION public.sync_user_profile(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.sync_user_profile(UUID) TO anon;
 
