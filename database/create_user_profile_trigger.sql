@@ -59,33 +59,64 @@ DECLARE
   auth_user_email TEXT;
   auth_user_name TEXT;
   profile_exists BOOLEAN;
+  was_created BOOLEAN := false;
 BEGIN
   -- Get user info from auth.users
   SELECT email, COALESCE(raw_user_meta_data->>'name', email) INTO auth_user_email, auth_user_name
   FROM auth.users
   WHERE id = user_id_param;
   
-  -- Check if profile already exists
-  SELECT EXISTS(SELECT 1 FROM public.users WHERE id = user_id_param) INTO profile_exists;
-  
-  -- If profile doesn't exist, create it
-  IF NOT profile_exists THEN
-    INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
-    VALUES (
-      user_id_param,
-      COALESCE(auth_user_email, 'unknown@example.com'),
-      COALESCE(auth_user_name, 'User'),
-      '',
-      false
-    )
-    ON CONFLICT (id) DO NOTHING;
+  -- If user doesn't exist in auth.users, return error
+  IF auth_user_email IS NULL THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'User not found in auth.users',
+      'user_id', user_id_param
+    );
   END IF;
   
-  -- Return success status
+  -- Check if profile already exists by ID
+  SELECT EXISTS(SELECT 1 FROM public.users WHERE id = user_id_param) INTO profile_exists;
+  
+  -- If profile doesn't exist, try to create it
+  IF NOT profile_exists THEN
+    BEGIN
+      INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
+      VALUES (
+        user_id_param,
+        auth_user_email,
+        auth_user_name,
+        '',
+        false
+      )
+      ON CONFLICT (id) DO NOTHING;
+      
+      -- Check if it was actually inserted (might have been created by trigger)
+      SELECT EXISTS(SELECT 1 FROM public.users WHERE id = user_id_param) INTO profile_exists;
+      was_created := profile_exists;
+    EXCEPTION
+      WHEN unique_violation THEN
+        -- Duplicate key error - profile exists (maybe created by another process)
+        -- This is fine, just mark as already existing
+        profile_exists := true;
+        was_created := false;
+      WHEN others THEN
+        -- Other errors - re-raise to be caught by outer exception handler
+        RAISE;
+    END;
+  END IF;
+  
+  -- Return success status (even if profile already existed, that's success)
   RETURN jsonb_build_object(
     'success', true,
-    'created', NOT profile_exists,
-    'user_id', user_id_param
+    'created', was_created,
+    'exists', profile_exists,
+    'user_id', user_id_param,
+    'message', CASE 
+      WHEN was_created THEN 'Profile created successfully'
+      WHEN profile_exists THEN 'Profile already exists'
+      ELSE 'Profile status unknown'
+    END
   );
 EXCEPTION
   WHEN others THEN
@@ -93,6 +124,7 @@ EXCEPTION
     RETURN jsonb_build_object(
       'success', false,
       'error', SQLERRM,
+      'error_code', SQLSTATE,
       'user_id', user_id_param
     );
 END;
