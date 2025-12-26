@@ -32,7 +32,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import type { Customer } from '@/types/business';
 
 export default function CustomersScreen() {
-  const { business, customers, documents, transactions, addCustomer, updateCustomer, deleteCustomer } = useBusiness();
+  const { business, customers, documents, addCustomer, updateCustomer, deleteCustomer } = useBusiness();
   const { theme } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

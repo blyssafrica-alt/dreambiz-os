@@ -1,14 +1,13 @@
-import { Stack, router } from 'expo-router';
+import { Stack } from 'expo-router';
 import { 
   Plus, 
   Building2,
   CheckCircle,
-  Edit2,
   Trash2,
   ArrowRight,
   X
 } from 'lucide-react-native';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,

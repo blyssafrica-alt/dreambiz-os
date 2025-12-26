@@ -2,10 +2,6 @@ import { Stack } from 'expo-router';
 import { 
   Plus, 
   Calendar,
-  Clock,
-  User,
-  Phone,
-  Mail,
   Edit2,
   Trash2,
   CheckCircle,
@@ -41,7 +37,7 @@ interface Appointment {
 }
 
 export default function AppointmentsScreen() {
-  const { business, customers } = useBusiness();
+  const { } = useBusiness();
   const { theme } = useTheme();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showModal, setShowModal] = useState(false);

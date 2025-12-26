@@ -4,16 +4,14 @@ import {
   Target,
   Edit2,
   Trash2,
-  TrendingUp,
-  TrendingDown,
   AlertCircle,
   X,
   FileText,
   BarChart3
 } from 'lucide-react-native';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { BarChart } from '@/components/Charts';
-import { getBudgetTemplatesForBusinessType, type BudgetTemplate } from '@/constants/budget-templates';
+import { getBudgetTemplatesForBusinessType } from '@/constants/budget-templates';
 import {
   View,
   Text,
@@ -26,7 +24,7 @@ import {
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { Budget, Currency } from '@/types/business';
+import type { Budget } from '@/types/business';
 
 export default function BudgetsScreen() {
   const { business, transactions, budgets, addBudget, updateBudget, deleteBudget } = useBusiness();
@@ -390,7 +388,6 @@ export default function BudgetsScreen() {
 
             <ScrollView style={styles.modalBody}>
               {selectedBudget && (() => {
-                const performance = getBudgetPerformance(selectedBudget);
                 const categoryData = selectedBudget.categories.map(cat => {
                   const categorySpent = transactions
                     .filter(t => t.category === cat.category && t.type === 'expense' && 

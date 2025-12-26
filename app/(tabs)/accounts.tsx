@@ -1,11 +1,8 @@
 import { Stack } from 'expo-router';
 import { 
-  DollarSign, 
   TrendingUp, 
   TrendingDown,
   Clock,
-  CheckCircle,
-  AlertCircle,
   FileText
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';

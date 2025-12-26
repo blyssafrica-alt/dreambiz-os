@@ -23,8 +23,8 @@ import {
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { RecurringInvoice, Currency } from '@/types/payments';
-import type { DocumentItem } from '@/types/business';
+import type { RecurringInvoice } from '@/types/payments';
+import type { DocumentItem, Currency } from '@/types/business';
 
 export default function RecurringInvoicesScreen() {
   const { business, recurringInvoices, addRecurringInvoice, updateRecurringInvoice, deleteRecurringInvoice, addDocument } = useBusiness();
@@ -146,12 +146,20 @@ export default function RecurringInvoicesScreen() {
   const handleGenerateInvoice = async (recurring: RecurringInvoice) => {
     try {
       // Generate invoice from recurring template
+      const documentItems: DocumentItem[] = recurring.items.map((item, idx) => ({
+        id: `item-${idx}`,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total,
+      }));
+      
       await addDocument({
         type: 'invoice',
         customerName: recurring.customerName,
         customerEmail: recurring.customerEmail,
         customerPhone: recurring.customerPhone,
-        items: recurring.items,
+        items: documentItems,
         subtotal: recurring.subtotal,
         tax: recurring.tax,
         total: recurring.total,

@@ -215,9 +215,10 @@ export default function ReportsScreen() {
 
     try {
       if (Platform.OS === 'web') {
-        const blob = new Blob([content], { type: 'text/plain' });
+        const blob = new Blob([content], { type: 'text/plain', lastModified: Date.now() });
         const url = URL.createObjectURL(blob);
-        const a = (global as any).document.createElement('a');
+        const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
+        if (!a) throw new Error('Document not available');
         a.href = url;
         a.download = `report-${period}-${new Date().toISOString().split('T')[0]}.txt`;
         a.click();
@@ -770,6 +771,43 @@ const styles = StyleSheet.create({
   },
   exportDesc: {
     fontSize: 12,
+  },
+  balanceSheetSection: {
+    marginBottom: 16,
+  },
+  balanceSheetSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  balanceSheetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  balanceSheetLabel: {
+    fontSize: 14,
+  },
+  balanceSheetValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  balanceSheetTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    marginTop: 8,
+  },
+  balanceSheetTotalLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  balanceSheetTotalValue: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 

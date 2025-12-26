@@ -113,6 +113,7 @@ export default function DocumentsScreen() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleLoadPreset = (preset: FilterPreset) => {
     const filters = preset.filters;
     if (filters.searchQuery) setSearchQuery(filters.searchQuery);
@@ -122,6 +123,7 @@ export default function DocumentsScreen() {
     RNAlert.alert('Success', `Loaded preset: ${preset.name}`);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDeletePreset = async (id: string) => {
     RNAlert.alert(
       'Delete Preset',

@@ -2,10 +2,8 @@ import { Stack } from 'expo-router';
 import { 
   Plus, 
   TrendingUp,
-  TrendingDown,
   Edit2,
   Trash2,
-  Calendar,
   X,
   ArrowUpRight,
   ArrowDownRight,
@@ -25,7 +23,7 @@ import {
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { CashflowProjection, Currency } from '@/types/business';
+import type { CashflowProjection } from '@/types/business';
 
 export default function CashflowScreen() {
   const { business, cashflowProjections, addCashflowProjection, updateCashflowProjection, deleteCashflowProjection } = useBusiness();
