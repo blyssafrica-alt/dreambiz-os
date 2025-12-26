@@ -9,7 +9,10 @@ import type {
   Document, 
   ExchangeRate,
   DashboardMetrics,
-  Alert 
+  Alert,
+  Product,
+  Customer,
+  Supplier
 } from '@/types/business';
 
 export const [BusinessContext, useBusiness] = createContextHook(() => {
@@ -17,6 +20,9 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   const [business, setBusiness] = useState<BusinessProfile | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate>({
     usdToZwl: 25000,
     lastUpdated: new Date().toISOString(),
@@ -34,10 +40,13 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
 
     try {
-      const [businessRes, transactionsRes, documentsRes, exchangeRateRes] = await Promise.all([
+      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, exchangeRateRes] = await Promise.all([
         supabase.from('business_profiles').select('*').eq('user_id', userId).single(),
         supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
         supabase.from('documents').select('*').eq('user_id', userId).order('date', { ascending: false }),
+        supabase.from('products').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('customers').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('suppliers').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('exchange_rates').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
@@ -87,6 +96,54 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           date: d.date,
           createdAt: d.created_at,
           notes: d.notes || undefined,
+        })));
+      }
+
+      if (productsRes.data) {
+        setProducts(productsRes.data.map(p => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || undefined,
+          costPrice: Number(p.cost_price),
+          sellingPrice: Number(p.selling_price),
+          currency: p.currency as any,
+          quantity: p.quantity,
+          category: p.category || undefined,
+          isActive: p.is_active,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at,
+        })));
+      }
+
+      if (customersRes.data) {
+        setCustomers(customersRes.data.map(c => ({
+          id: c.id,
+          name: c.name,
+          email: c.email || undefined,
+          phone: c.phone || undefined,
+          address: c.address || undefined,
+          notes: c.notes || undefined,
+          totalPurchases: Number(c.total_purchases),
+          lastPurchaseDate: c.last_purchase_date || undefined,
+          createdAt: c.created_at,
+          updatedAt: c.updated_at,
+        })));
+      }
+
+      if (suppliersRes.data) {
+        setSuppliers(suppliersRes.data.map(s => ({
+          id: s.id,
+          name: s.name,
+          email: s.email || undefined,
+          phone: s.phone || undefined,
+          address: s.address || undefined,
+          contactPerson: s.contact_person || undefined,
+          notes: s.notes || undefined,
+          totalPurchases: Number(s.total_purchases),
+          lastPurchaseDate: s.last_purchase_date || undefined,
+          paymentTerms: s.payment_terms || undefined,
+          createdAt: s.created_at,
+          updatedAt: s.updated_at,
         })));
       }
 
@@ -529,6 +586,268 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
   };
 
+  // Products Management
+  const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: product.name,
+          description: product.description || null,
+          cost_price: product.costPrice,
+          selling_price: product.sellingPrice,
+          currency: product.currency,
+          quantity: product.quantity,
+          category: product.category || null,
+          is_active: product.isActive,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newProduct: Product = {
+        id: data.id,
+        name: data.name,
+        description: data.description || undefined,
+        costPrice: Number(data.cost_price),
+        sellingPrice: Number(data.selling_price),
+        currency: data.currency as any,
+        quantity: data.quantity,
+        category: data.category || undefined,
+        isActive: data.is_active,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setProducts([newProduct, ...products]);
+    } catch (error) {
+      console.error('Failed to add product:', error);
+      throw error;
+    }
+  };
+
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.description !== undefined) updateData.description = updates.description || null;
+      if (updates.costPrice !== undefined) updateData.cost_price = updates.costPrice;
+      if (updates.sellingPrice !== undefined) updateData.selling_price = updates.sellingPrice;
+      if (updates.currency !== undefined) updateData.currency = updates.currency;
+      if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
+      if (updates.category !== undefined) updateData.category = updates.category || null;
+      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+
+      const { error } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = products.map(p => 
+        p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
+      );
+      setProducts(updated);
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      throw error;
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setProducts(products.filter(p => p.id !== id));
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      throw error;
+    }
+  };
+
+  // Customers Management
+  const addCustomer = async (customer: Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'totalPurchases' | 'lastPurchaseDate'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: customer.name,
+          email: customer.email || null,
+          phone: customer.phone || null,
+          address: customer.address || null,
+          notes: customer.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newCustomer: Customer = {
+        id: data.id,
+        name: data.name,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        address: data.address || undefined,
+        notes: data.notes || undefined,
+        totalPurchases: Number(data.total_purchases),
+        lastPurchaseDate: data.last_purchase_date || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setCustomers([newCustomer, ...customers]);
+    } catch (error) {
+      console.error('Failed to add customer:', error);
+      throw error;
+    }
+  };
+
+  const updateCustomer = async (id: string, updates: Partial<Customer>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.email !== undefined) updateData.email = updates.email || null;
+      if (updates.phone !== undefined) updateData.phone = updates.phone || null;
+      if (updates.address !== undefined) updateData.address = updates.address || null;
+      if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+
+      const { error } = await supabase
+        .from('customers')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = customers.map(c => 
+        c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
+      );
+      setCustomers(updated);
+    } catch (error) {
+      console.error('Failed to update customer:', error);
+      throw error;
+    }
+  };
+
+  const deleteCustomer = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setCustomers(customers.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('Failed to delete customer:', error);
+      throw error;
+    }
+  };
+
+  // Suppliers Management
+  const addSupplier = async (supplier: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt' | 'totalPurchases' | 'lastPurchaseDate'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: supplier.name,
+          email: supplier.email || null,
+          phone: supplier.phone || null,
+          address: supplier.address || null,
+          contact_person: supplier.contactPerson || null,
+          notes: supplier.notes || null,
+          payment_terms: supplier.paymentTerms || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newSupplier: Supplier = {
+        id: data.id,
+        name: data.name,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        address: data.address || undefined,
+        contactPerson: data.contact_person || undefined,
+        notes: data.notes || undefined,
+        totalPurchases: Number(data.total_purchases),
+        lastPurchaseDate: data.last_purchase_date || undefined,
+        paymentTerms: data.payment_terms || undefined,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setSuppliers([newSupplier, ...suppliers]);
+    } catch (error) {
+      console.error('Failed to add supplier:', error);
+      throw error;
+    }
+  };
+
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.email !== undefined) updateData.email = updates.email || null;
+      if (updates.phone !== undefined) updateData.phone = updates.phone || null;
+      if (updates.address !== undefined) updateData.address = updates.address || null;
+      if (updates.contactPerson !== undefined) updateData.contact_person = updates.contactPerson || null;
+      if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+      if (updates.paymentTerms !== undefined) updateData.payment_terms = updates.paymentTerms || null;
+
+      const { error } = await supabase
+        .from('suppliers')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = suppliers.map(s => 
+        s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s
+      );
+      setSuppliers(updated);
+    } catch (error) {
+      console.error('Failed to update supplier:', error);
+      throw error;
+    }
+  };
+
+  const deleteSupplier = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSuppliers(suppliers.filter(s => s.id !== id));
+    } catch (error) {
+      console.error('Failed to delete supplier:', error);
+      throw error;
+    }
+  };
+
   const getDashboardMetrics = (): DashboardMetrics => {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -659,6 +978,9 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     business,
     transactions,
     documents,
+    products,
+    customers,
+    suppliers,
     exchangeRate,
     isLoading,
     hasOnboarded,
@@ -667,6 +989,15 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     updateTransaction,
     deleteTransaction,
     addDocument,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    addCustomer,
+    updateCustomer,
+    deleteCustomer,
+    addSupplier,
+    updateSupplier,
+    deleteSupplier,
     updateExchangeRate,
     getDashboardMetrics,
   };

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, DollarSign, FileText, Calculator, Settings } from "lucide-react-native";
+import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck } from "lucide-react-native";
 import React from "react";
 import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -60,6 +60,45 @@ export default function TabLayout() {
           title: "Finances",
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <DollarSign 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="products"
+        options={{
+          title: "Products",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Package 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="customers"
+        options={{
+          title: "Customers",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Users 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="suppliers"
+        options={{
+          title: "Suppliers",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Truck 
               size={focused ? 26 : 24} 
               color={color} 
               strokeWidth={focused ? 2.5 : 2}

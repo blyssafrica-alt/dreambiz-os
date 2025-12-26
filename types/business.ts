@@ -102,3 +102,45 @@ export interface Alert {
   message: string;
   action?: string;
 }
+
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  costPrice: number;
+  sellingPrice: number;
+  currency: Currency;
+  quantity: number;
+  category?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  notes?: string;
+  totalPurchases: number;
+  lastPurchaseDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  contactPerson?: string;
+  notes?: string;
+  totalPurchases: number;
+  lastPurchaseDate?: string;
+  paymentTerms?: string;
+  createdAt: string;
+  updatedAt: string;
+}
