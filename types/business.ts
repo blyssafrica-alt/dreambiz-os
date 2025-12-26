@@ -70,6 +70,8 @@ export interface Document {
   status?: DocumentStatus;
   createdAt: string;
   notes?: string;
+  paidAmount?: number; // For partial payments
+  paymentMethod?: 'cash' | 'bank_transfer' | 'mobile_money' | 'card' | 'other';
 }
 
 export interface Budget {

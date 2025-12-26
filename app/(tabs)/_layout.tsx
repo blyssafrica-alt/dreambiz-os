@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp, FolderKanban, UserCircle, Percent, Receipt } from "lucide-react-native";
+import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp, FolderKanban, UserCircle, Percent, Receipt, Repeat } from "lucide-react-native";
 import React from "react";
 import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -230,6 +230,20 @@ export default function TabLayout() {
           href: visibleTabs.includes('accounts') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Receipt 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="recurring-invoices"
+        options={{
+          title: "Recurring",
+          href: visibleTabs.includes('recurring-invoices') ? undefined : null,
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Repeat 
               size={focused ? 26 : 24} 
               color={color} 
               strokeWidth={focused ? 2.5 : 2}

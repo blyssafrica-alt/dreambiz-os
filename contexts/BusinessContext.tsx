@@ -21,6 +21,7 @@ import type {
   Project,
   ProjectTask
 } from '@/types/business';
+import type { RecurringInvoice, Payment } from '@/types/payments';
 
 export const [BusinessContext, useBusiness] = createContextHook(() => {
   const { user, authUser } = useAuth();
@@ -36,6 +37,8 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
+  const [recurringInvoices, setRecurringInvoices] = useState<RecurringInvoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate>({
     usdToZwl: 25000,
     lastUpdated: new Date().toISOString(),
@@ -53,7 +56,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
 
     try {
-      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, budgetsRes, cashflowRes, taxRatesRes, employeesRes, projectsRes, projectTasksRes, exchangeRateRes] = await Promise.all([
+      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, budgetsRes, cashflowRes, taxRatesRes, employeesRes, projectsRes, projectTasksRes, recurringInvoicesRes, paymentsRes, exchangeRateRes] = await Promise.all([
         supabase.from('business_profiles').select('*').eq('user_id', userId).single(),
         supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
         supabase.from('documents').select('*').eq('user_id', userId).order('date', { ascending: false }),
@@ -66,6 +69,8 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         supabase.from('employees').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('projects').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('project_tasks').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('recurring_invoices').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('payments').select('*').eq('user_id', userId).order('payment_date', { ascending: false }),
         supabase.from('exchange_rates').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
@@ -261,6 +266,41 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           assignedTo: t.assigned_to || undefined,
           createdAt: t.created_at,
           updatedAt: t.updated_at,
+        })));
+      }
+
+      if (recurringInvoicesRes.data) {
+        setRecurringInvoices(recurringInvoicesRes.data.map(r => ({
+          id: r.id,
+          customerName: r.customer_name,
+          customerEmail: r.customer_email || undefined,
+          customerPhone: r.customer_phone || undefined,
+          items: r.items as any,
+          subtotal: Number(r.subtotal),
+          tax: r.tax ? Number(r.tax) : undefined,
+          total: Number(r.total),
+          currency: r.currency as any,
+          frequency: r.frequency as any,
+          startDate: r.start_date,
+          endDate: r.end_date || undefined,
+          nextDueDate: r.next_due_date,
+          isActive: r.is_active,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        })));
+      }
+
+      if (paymentsRes.data) {
+        setPayments(paymentsRes.data.map(p => ({
+          id: p.id,
+          documentId: p.document_id,
+          amount: Number(p.amount),
+          currency: p.currency as any,
+          paymentDate: p.payment_date,
+          paymentMethod: p.payment_method as any,
+          reference: p.reference || undefined,
+          notes: p.notes || undefined,
+          createdAt: p.created_at,
         })));
       }
 
@@ -1788,6 +1828,14 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     addProjectTask,
     updateProjectTask,
     deleteProjectTask,
+    addRecurringInvoice,
+    updateRecurringInvoice,
+    deleteRecurringInvoice,
+    addPayment,
+    deletePayment,
+    getDocumentPayments,
+    getDocumentPaidAmount,
+    logActivity,
     updateExchangeRate,
     getDashboardMetrics,
   };
