@@ -7,9 +7,13 @@ import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
-  X
+  X,
+  FileText,
+  BarChart3
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';
+import { BarChart } from '@/components/Charts';
+import { getBudgetTemplatesForBusinessType, type BudgetTemplate } from '@/constants/budget-templates';
 import {
   View,
   Text,
@@ -35,6 +39,9 @@ export default function BudgetsScreen() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [categories, setCategories] = useState<{ category: string; budgeted: string }[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [showBudgetDetail, setShowBudgetDetail] = useState(false);
 
   const formatCurrency = (amount: number) => {
     const symbol = business?.currency === 'USD' ? '$' : 'ZWL';
@@ -184,20 +191,28 @@ export default function BudgetsScreen() {
       
       <View style={[styles.header, { backgroundColor: theme.background.card }]}>
         <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Budgets</Text>
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: theme.accent.primary }]}
-          onPress={() => {
-            const today = new Date();
-            const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-            const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-            setStartDate(monthStart.toISOString().split('T')[0]);
-            setEndDate(monthEnd.toISOString().split('T')[0]);
-            setCategories([{ category: '', budgeted: '' }]);
-            setShowModal(true);
-          }}
-        >
-          <Plus size={20} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.templateButton, { backgroundColor: theme.background.secondary }]}
+            onPress={() => setShowTemplateModal(true)}
+          >
+            <FileText size={18} color={theme.accent.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addButton, { backgroundColor: theme.accent.primary }]}
+            onPress={() => {
+              const today = new Date();
+              const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+              const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+              setStartDate(monthStart.toISOString().split('T')[0]);
+              setEndDate(monthEnd.toISOString().split('T')[0]);
+              setCategories([{ category: '', budgeted: '' }]);
+              setShowModal(true);
+            }}
+          >
+            <Plus size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.scrollView}>
@@ -235,6 +250,15 @@ export default function BudgetsScreen() {
                     </Text>
                   </View>
                   <View style={styles.budgetActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => {
+                        setSelectedBudget(budget);
+                        setShowBudgetDetail(true);
+                      }}
+                    >
+                      <BarChart3 size={18} color={theme.accent.info} />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.actionButton}
                       onPress={() => handleEdit(budget)}
