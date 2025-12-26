@@ -37,7 +37,8 @@ interface Appointment {
 }
 
 export default function AppointmentsScreen() {
-  useBusiness(); // Context hook - values not needed yet
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _ = useBusiness(); // Context hook - values not needed yet
   const { theme } = useTheme();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showModal, setShowModal] = useState(false);

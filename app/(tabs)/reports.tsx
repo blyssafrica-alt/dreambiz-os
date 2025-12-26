@@ -217,8 +217,9 @@ export default function ReportsScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
+        // TypeScript-safe document access for web platform
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const doc = (globalThis as any).document;
+        const doc = (typeof globalThis !== 'undefined' && (globalThis as any).document) as any;
         if (!doc) throw new Error('Document not available');
         const a = doc.createElement('a');
         a.href = url;
