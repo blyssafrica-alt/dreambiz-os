@@ -6,7 +6,11 @@
 -- First, find your user ID:
 SELECT id, email FROM auth.users WHERE email = 'nashiezw@gmail.com';
 
--- Then create the profile directly (replace the UUID below with your actual user ID):
+-- Then create/update the profile directly (handles both ID and email conflicts):
+-- Step 1: Delete any existing profile with this email (in case ID is different)
+DELETE FROM public.users WHERE email = 'nashiezw@gmail.com';
+
+-- Step 2: Insert the profile with the correct ID from auth.users
 INSERT INTO public.users (id, email, name, password_hash, is_super_admin)
 SELECT 
   au.id,
