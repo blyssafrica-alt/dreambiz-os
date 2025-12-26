@@ -37,7 +37,7 @@ interface Appointment {
 }
 
 export default function AppointmentsScreen() {
-  const { } = useBusiness();
+  useBusiness(); // Context hook - values not needed yet
   const { theme } = useTheme();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showModal, setShowModal] = useState(false);

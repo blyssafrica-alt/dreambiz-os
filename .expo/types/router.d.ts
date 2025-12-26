@@ -5,8 +5,16 @@
 declare module 'expo-router' {
   import { ComponentType } from 'react';
   
-  export const Stack: ComponentType<any>;
-  export const Tabs: ComponentType<any>;
+  interface StackComponent extends ComponentType<any> {
+    Screen: ComponentType<any>;
+  }
+  
+  interface TabsComponent extends ComponentType<any> {
+    Screen: ComponentType<any>;
+  }
+  
+  export const Stack: StackComponent;
+  export const Tabs: TabsComponent;
   export const Slot: ComponentType<any>;
   export function useRouter(): any;
   export function useSegments(): string[];

@@ -5,7 +5,6 @@ import {
   Mail,
   MessageSquare,
   Cloud,
-  Link as LinkIcon,
   CheckCircle,
   XCircle,
   Settings,
@@ -18,7 +17,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   Alert as RNAlert,
   Linking,
 } from 'react-native';

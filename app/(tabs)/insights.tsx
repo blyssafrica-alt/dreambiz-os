@@ -32,7 +32,7 @@ interface Insight {
 }
 
 export default function InsightsScreen() {
-  const { business, transactions, documents, products, customers, budgets } = useBusiness();
+  const { business, transactions, products, customers, budgets } = useBusiness();
   const { theme } = useTheme();
 
   const formatCurrency = (amount: number) => {
@@ -210,7 +210,7 @@ export default function InsightsScreen() {
     // Sort by priority
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return result.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-  }, [transactions, products, budgets, customers, business, formatCurrency]);
+  }, [transactions, products, budgets, customers, formatCurrency]);
 
   const getInsightIcon = (type: Insight['type']) => {
     switch (type) {

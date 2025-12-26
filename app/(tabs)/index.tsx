@@ -12,9 +12,6 @@ import {
   BarChart3,
   Search,
   HelpCircle,
-  FileText,
-  Package,
-  Users,
   Camera
 } from 'lucide-react-native';
 import { 
@@ -35,7 +32,7 @@ import { LineChart, PieChart, BarChart } from '@/components/Charts';
 import GlobalSearch from '@/components/GlobalSearch';
 
 export default function DashboardScreen() {
-  const { business, getDashboardMetrics, transactions, documents, products } = useBusiness();
+  const { business, getDashboardMetrics, transactions, documents } = useBusiness();
   const { theme } = useTheme();
   const metrics = getDashboardMetrics();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -88,6 +85,7 @@ export default function DashboardScreen() {
   }, [business?.currency]);
 
   // Recent activity (last 5 transactions and documents)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const recentActivity = useMemo(() => {
     const recentTransactions = transactions
       .slice(0, 5)

@@ -182,8 +182,10 @@ export default function FinancesScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([csvContent], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
-        const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
-        if (!a) throw new Error('Document not available');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = (globalThis as any).document;
+        if (!doc) throw new Error('Document not available');
+        const a = doc.createElement('a');
         a.href = url;
         a.download = `dreambig-transactions-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();

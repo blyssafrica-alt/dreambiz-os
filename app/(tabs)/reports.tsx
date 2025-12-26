@@ -217,8 +217,10 @@ export default function ReportsScreen() {
       if (Platform.OS === 'web') {
         const blob = new Blob([content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
-        const a = (typeof window !== 'undefined' && window.document ? window.document.createElement('a') : null);
-        if (!a) throw new Error('Document not available');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = (globalThis as any).document;
+        if (!doc) throw new Error('Document not available');
+        const a = doc.createElement('a');
         a.href = url;
         a.download = `report-${period}-${new Date().toISOString().split('T')[0]}.txt`;
         a.click();
@@ -806,6 +808,43 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   balanceSheetTotalValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cashflowSection: {
+    marginBottom: 16,
+  },
+  cashflowSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  cashflowRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  cashflowLabel: {
+    fontSize: 14,
+  },
+  cashflowValue: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  cashflowTotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    marginTop: 8,
+  },
+  cashflowTotalLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cashflowTotalValue: {
     fontSize: 14,
     fontWeight: '700',
   },

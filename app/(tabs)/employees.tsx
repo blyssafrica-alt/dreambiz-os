@@ -23,7 +23,7 @@ import {
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { Employee, Currency } from '@/types/business';
+import type { Employee } from '@/types/business';
 
 export default function EmployeesScreen() {
   const { business, employees, addEmployee, updateEmployee, deleteEmployee } = useBusiness();
