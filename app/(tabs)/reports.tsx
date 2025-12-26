@@ -1,11 +1,8 @@
 import { Stack } from 'expo-router';
 import { 
-  BarChart3, 
   TrendingUp, 
-  TrendingDown,
   Download,
   Calendar,
-  DollarSign,
   FileText
 } from 'lucide-react-native';
 import { useState, useMemo } from 'react';

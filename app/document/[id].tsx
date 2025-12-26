@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Share as ShareIcon, Download, Mail, FileDown, Plus, DollarSign, Trash2, X, QrCode, Link as LinkIcon } from 'lucide-react-native';
+import { Share as ShareIcon, Download, Mail, FileDown, Plus, Trash2, X, QrCode, Link as LinkIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { 
   View, 
@@ -891,5 +891,116 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 20,
     fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    borderRadius: 16,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  qrContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  qrTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 8,
+  },
+  qrAmount: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    marginBottom: 20,
+  },
+  qrImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  qrHint: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  qrButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  qrButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: '#FFF',
+  },
+  paymentLinkContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  paymentLinkTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 8,
+  },
+  paymentLinkAmount: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    marginBottom: 20,
+  },
+  linkBox: {
+    width: '100%',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  linkText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  linkButton: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  copyButton: {
+    marginBottom: 0,
+  },
+  linkButtonText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
   },
 });
