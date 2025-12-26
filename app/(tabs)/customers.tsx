@@ -849,5 +849,18 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     textTransform: 'uppercase',
   },
+  communicationLog: {
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  communicationText: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  communicationDate: {
+    fontSize: 12,
+  },
 });
 

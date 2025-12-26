@@ -14,7 +14,8 @@ import {
   HelpCircle,
   FileText,
   Package,
-  Users
+  Users,
+  HelpCircle
 } from 'lucide-react-native';
 import { 
   View, 
@@ -255,6 +256,12 @@ export default function DashboardScreen() {
             <Text style={styles.businessName}>{business?.name}</Text>
           </View>
           <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={[styles.quickAddButton, { backgroundColor: theme.background.card }]} 
+              onPress={() => router.push('/help' as any)}
+            >
+              <HelpCircle size={20} color={theme.accent.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.quickAddButton, { backgroundColor: theme.background.card }]} 
               onPress={() => setShowSearch(true)}
