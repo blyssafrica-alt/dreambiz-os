@@ -3,9 +3,14 @@ import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck
 import React from "react";
 import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useBusiness } from "@/contexts/BusinessContext";
+import { getVisibleTabs } from "@/constants/books";
 
 export default function TabLayout() {
   const { theme, isLoading } = useTheme();
+  const { business } = useBusiness();
+  
+  const visibleTabs = getVisibleTabs(business?.dreamBigBook);
   
   // Show loading indicator while theme is loading
   if (isLoading || !theme) {
@@ -70,6 +75,7 @@ export default function TabLayout() {
         name="products"
         options={{
           title: "Products",
+          href: visibleTabs.includes('products') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Package 
               size={focused ? 26 : 24} 
@@ -83,6 +89,7 @@ export default function TabLayout() {
         name="customers"
         options={{
           title: "Customers",
+          href: visibleTabs.includes('customers') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Users 
               size={focused ? 26 : 24} 
@@ -96,6 +103,7 @@ export default function TabLayout() {
         name="suppliers"
         options={{
           title: "Suppliers",
+          href: visibleTabs.includes('suppliers') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Truck 
               size={focused ? 26 : 24} 
@@ -122,6 +130,7 @@ export default function TabLayout() {
         name="reports"
         options={{
           title: "Reports",
+          href: visibleTabs.includes('reports') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <BarChart3 
               size={focused ? 26 : 24} 
@@ -135,6 +144,7 @@ export default function TabLayout() {
         name="budgets"
         options={{
           title: "Budgets",
+          href: visibleTabs.includes('budgets') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Target 
               size={focused ? 26 : 24} 
@@ -148,6 +158,7 @@ export default function TabLayout() {
         name="cashflow"
         options={{
           title: "Cashflow",
+          href: visibleTabs.includes('cashflow') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <TrendingUp 
               size={focused ? 26 : 24} 
@@ -174,6 +185,7 @@ export default function TabLayout() {
         name="projects"
         options={{
           title: "Projects",
+          href: visibleTabs.includes('projects') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <FolderKanban 
               size={focused ? 26 : 24} 
@@ -187,6 +199,7 @@ export default function TabLayout() {
         name="employees"
         options={{
           title: "Employees",
+          href: visibleTabs.includes('employees') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <UserCircle 
               size={focused ? 26 : 24} 
@@ -200,6 +213,7 @@ export default function TabLayout() {
         name="tax"
         options={{
           title: "Tax",
+          href: visibleTabs.includes('tax') ? undefined : null,
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <Percent 
               size={focused ? 26 : 24} 

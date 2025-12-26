@@ -73,6 +73,52 @@ export const getBookInfo = (bookId: DreamBigBook): BookInfo => {
 };
 
 export const hasBookAccess = (userBook: DreamBigBook | undefined, requiredBook: DreamBigBook): boolean => {
-  if (!userBook || userBook === 'none') return false;
-  return true; // All book owners get access to all features for now
+  if (!userBook || userBook === 'none') return requiredBook === 'none';
+  return true; // All book owners get access to all features
+};
+
+export const getBookFeatures = (bookId: DreamBigBook): string[] => {
+  const book = getBookInfo(bookId);
+  return book.unlocks;
+};
+
+export const hasFeatureAccess = (userBook: DreamBigBook | undefined, feature: string): boolean => {
+  if (!userBook || userBook === 'none') return ['Basic Dashboard', 'Simple Tracking'].includes(feature);
+  return true; // All book owners get full access
+};
+
+// Tab visibility based on book ownership
+export const getVisibleTabs = (userBook: DreamBigBook | undefined): string[] => {
+  // Basic tabs for all users
+  const basicTabs = ['index', 'finances', 'documents', 'calculator', 'settings'];
+  
+  if (!userBook || userBook === 'none') {
+    return basicTabs;
+  }
+  
+  // Additional tabs based on book
+  const additionalTabs: string[] = [];
+  
+  switch (userBook) {
+    case 'start-your-business':
+      additionalTabs.push('products', 'customers', 'reports', 'budgets');
+      break;
+    case 'grow-your-business':
+      additionalTabs.push('products', 'customers', 'suppliers', 'reports', 'projects');
+      break;
+    case 'manage-your-money':
+      additionalTabs.push('reports', 'budgets', 'cashflow', 'tax');
+      break;
+    case 'hire-and-lead':
+      additionalTabs.push('employees', 'projects', 'reports');
+      break;
+    case 'marketing-mastery':
+      additionalTabs.push('customers', 'products', 'reports', 'projects');
+      break;
+    case 'scale-up':
+      additionalTabs.push('products', 'customers', 'suppliers', 'employees', 'projects', 'reports', 'budgets', 'cashflow', 'tax');
+      break;
+  }
+  
+  return [...basicTabs, ...additionalTabs];
 };

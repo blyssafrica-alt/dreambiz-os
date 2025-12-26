@@ -19,7 +19,25 @@ export default function CalculatorScreen() {
   const [pricePerUnit, setPricePerUnit] = useState('');
   const [costPerUnit, setCostPerUnit] = useState('');
   const [expectedSales, setExpectedSales] = useState('');
+  const [inflationRate, setInflationRate] = useState('');
   const [result, setResult] = useState<ViabilityResult | null>(null);
+
+  const calculateScenario = (salesVolume: number, cap: number, expenses: number, price: number, cost: number) => {
+    const monthlyRevenue = salesVolume * price;
+    const monthlyCosts = salesVolume * cost;
+    const monthlyProfit = monthlyRevenue - monthlyCosts - expenses;
+    const monthsToRecover = monthlyProfit > 0 ? Math.ceil(cap / monthlyProfit) : Infinity;
+    const profitMargin = price > 0 ? ((price - cost) / price) * 100 : 0;
+    
+    let verdict: 'viable' | 'risky' | 'not-viable' = 'viable';
+    if (monthlyProfit <= 0) {
+      verdict = 'not-viable';
+    } else if (profitMargin < 20 || monthsToRecover > 12) {
+      verdict = 'risky';
+    }
+    
+    return { salesVolume, monthlyProfit, monthsToRecover, verdict };
+  };
 
   const calculate = () => {
     const cap = parseFloat(capital) || 0;
@@ -27,6 +45,7 @@ export default function CalculatorScreen() {
     const price = parseFloat(pricePerUnit) || 0;
     const cost = parseFloat(costPerUnit) || 0;
     const sales = parseFloat(expectedSales) || 0;
+    const inflation = parseFloat(inflationRate) || 0;
 
     if (price <= cost) {
       setResult({
@@ -66,6 +85,20 @@ export default function CalculatorScreen() {
       verdict = 'risky';
       warnings.push('Capital recovery will take over a year');
     }
+    
+    if (inflation > 10) {
+      warnings.push(`High inflation (${inflation}%) - review prices regularly`);
+    }
+
+    // Calculate scenarios
+    const optimisticSales = Math.round(sales * 1.2);
+    const pessimisticSales = Math.round(sales * 0.8);
+    
+    const scenarios = {
+      optimistic: calculateScenario(optimisticSales, cap, expenses, price, cost),
+      realistic: calculateScenario(sales, cap, expenses, price, cost),
+      pessimistic: calculateScenario(pessimisticSales, cap, expenses, price, cost),
+    };
 
     setResult({
       breakEvenUnits,
@@ -75,6 +108,7 @@ export default function CalculatorScreen() {
       verdict,
       warnings,
       profitMargin,
+      scenarios,
     });
   };
 
@@ -181,6 +215,18 @@ export default function CalculatorScreen() {
             />
           </View>
 
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Annual Inflation Rate (%)</Text>
+            <Text style={styles.hint}>Optional - helps adjust projections</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="0"
+              keyboardType="decimal-pad"
+              value={inflationRate}
+              onChangeText={setInflationRate}
+            />
+          </View>
+
           <TouchableOpacity style={styles.calculateButton} onPress={calculate}>
             <Text style={styles.calculateButtonText}>Calculate Viability</Text>
           </TouchableOpacity>
@@ -252,6 +298,52 @@ export default function CalculatorScreen() {
                     • {warning}
                   </Text>
                 ))}
+              </View>
+            )}
+
+            {result.scenarios && (
+              <View style={styles.scenariosCard}>
+                <Text style={styles.scenariosTitle}>📊 Scenario Planning</Text>
+                <Text style={styles.scenariosSubtitle}>See how different sales volumes affect your business</Text>
+                
+                <View style={styles.scenarioRow}>
+                  <View style={[styles.scenarioCard, { borderColor: '#10B981' }]}>
+                    <Text style={[styles.scenarioLabel, { color: '#10B981' }]}>Optimistic</Text>
+                    <Text style={styles.scenarioSales}>{result.scenarios.optimistic.salesVolume} units/mo</Text>
+                    <Text style={[styles.scenarioProfit, { color: result.scenarios.optimistic.monthlyProfit >= 0 ? '#10B981' : '#EF4444' }]}>
+                      {formatCurrency(result.scenarios.optimistic.monthlyProfit)}
+                    </Text>
+                    <Text style={styles.scenarioRecovery}>
+                      {result.scenarios.optimistic.monthsToRecover === Infinity ? 'Never' : `${result.scenarios.optimistic.monthsToRecover}mo`}
+                    </Text>
+                  </View>
+                  
+                  <View style={[styles.scenarioCard, { borderColor: '#3B82F6' }]}>
+                    <Text style={[styles.scenarioLabel, { color: '#3B82F6' }]}>Realistic</Text>
+                    <Text style={styles.scenarioSales}>{result.scenarios.realistic.salesVolume} units/mo</Text>
+                    <Text style={[styles.scenarioProfit, { color: result.scenarios.realistic.monthlyProfit >= 0 ? '#10B981' : '#EF4444' }]}>
+                      {formatCurrency(result.scenarios.realistic.monthlyProfit)}
+                    </Text>
+                    <Text style={styles.scenarioRecovery}>
+                      {result.scenarios.realistic.monthsToRecover === Infinity ? 'Never' : `${result.scenarios.realistic.monthsToRecover}mo`}
+                    </Text>
+                  </View>
+                  
+                  <View style={[styles.scenarioCard, { borderColor: '#F59E0B' }]}>
+                    <Text style={[styles.scenarioLabel, { color: '#F59E0B' }]}>Pessimistic</Text>
+                    <Text style={styles.scenarioSales}>{result.scenarios.pessimistic.salesVolume} units/mo</Text>
+                    <Text style={[styles.scenarioProfit, { color: result.scenarios.pessimistic.monthlyProfit >= 0 ? '#10B981' : '#EF4444' }]}>
+                      {formatCurrency(result.scenarios.pessimistic.monthlyProfit)}
+                    </Text>
+                    <Text style={styles.scenarioRecovery}>
+                      {result.scenarios.pessimistic.monthsToRecover === Infinity ? 'Never' : `${result.scenarios.pessimistic.monthsToRecover}mo`}
+                    </Text>
+                  </View>
+                </View>
+                
+                <Text style={styles.scenariosNote}>
+                  💡 Optimistic: +20% sales | Pessimistic: -20% sales
+                </Text>
               </View>
             )}
 
@@ -435,5 +527,62 @@ const styles = StyleSheet.create({
     color: '#334155',
     marginBottom: 6,
     lineHeight: 20,
+  },
+  scenariosCard: {
+    padding: 20,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  scenariosTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  scenariosSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  scenarioRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  scenarioCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  scenarioLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    marginBottom: 8,
+    textTransform: 'uppercase' as const,
+  },
+  scenarioSales: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  scenarioProfit: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  scenarioRecovery: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  scenariosNote: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    fontStyle: 'italic' as const,
   },
 });

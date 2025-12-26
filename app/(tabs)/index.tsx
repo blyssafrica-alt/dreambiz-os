@@ -69,6 +69,11 @@ export default function DashboardScreen() {
           {alert.action && (
             <Text style={[styles.alertAction, { color: color.text }]}>{alert.action}</Text>
           )}
+          {alert.bookReference && (
+            <Text style={[styles.alertBookRef, { color: color.text }]}>
+              📖 {alert.bookReference.chapterTitle} (Ch. {alert.bookReference.chapter})
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -494,6 +499,12 @@ const styles = StyleSheet.create({
   alertAction: {
     fontSize: 13,
     fontWeight: '500' as const,
+  },
+  alertBookRef: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    marginTop: 4,
+    opacity: 0.9,
   },
   categoriesSection: {
     marginBottom: 24,

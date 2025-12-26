@@ -18,6 +18,7 @@ export type BusinessType =
 export interface ExchangeRate {
   usdToZwl: number;
   lastUpdated: string;
+  inflationRate?: number;
 }
 
 export interface BusinessProfile {
@@ -178,6 +179,18 @@ export interface ViabilityResult {
   verdict: 'viable' | 'risky' | 'not-viable';
   warnings: string[];
   profitMargin: number;
+  scenarios?: {
+    optimistic: ScenarioResult;
+    realistic: ScenarioResult;
+    pessimistic: ScenarioResult;
+  };
+}
+
+export interface ScenarioResult {
+  salesVolume: number;
+  monthlyProfit: number;
+  monthsToRecover: number;
+  verdict: 'viable' | 'risky' | 'not-viable';
 }
 
 export interface DashboardMetrics {

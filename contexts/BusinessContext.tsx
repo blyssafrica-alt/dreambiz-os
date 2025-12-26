@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 import { getProvider } from '@/lib/providers';
+import { getChapterForTopic } from '@/constants/book-chapters';
 import type { 
   BusinessProfile, 
   Transaction, 
@@ -1039,41 +1040,66 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       .slice(0, 5);
 
     const alerts: Alert[] = [];
+    const userBook = business?.dreamBigBook;
     
     if (monthExpenses > monthSales && monthSales > 0) {
+      const chapter = getChapterForTopic(userBook, 'expenses');
       alerts.push({
         id: '1',
         type: 'danger',
         message: 'Expenses exceed sales this month',
         action: 'Urgent: Review and cut costs or increase sales',
+        bookReference: chapter ? {
+          book: chapter.book,
+          chapter: chapter.chapter,
+          chapterTitle: chapter.title,
+        } : undefined,
       });
     }
 
     const profitMargin = monthSales > 0 ? ((monthSales - monthExpenses) / monthSales) * 100 : 0;
     if (profitMargin < 20 && profitMargin > 0 && monthSales > 0) {
+      const chapter = getChapterForTopic(userBook, 'pricing');
       alerts.push({
         id: '2',
         type: 'warning',
         message: `Low profit margin (${profitMargin.toFixed(1)}%)`,
         action: 'Consider raising prices or reducing costs',
+        bookReference: chapter ? {
+          book: chapter.book,
+          chapter: chapter.chapter,
+          chapterTitle: chapter.title,
+        } : undefined,
       });
     }
 
     const cashPosition = (business?.capital || 0) + monthSales - monthExpenses;
     
     if (cashPosition < 0) {
+      const chapter = getChapterForTopic(userBook, 'cashflow');
       alerts.push({
         id: '3',
         type: 'danger',
         message: 'Negative cash position',
         action: 'You need to inject capital or reduce expenses immediately',
+        bookReference: chapter ? {
+          book: chapter.book,
+          chapter: chapter.chapter,
+          chapterTitle: chapter.title,
+        } : undefined,
       });
     } else if (cashPosition > 0 && cashPosition < (business?.capital || 0) * 0.3) {
+      const chapter = getChapterForTopic(userBook, 'cash-management');
       alerts.push({
         id: '4',
         type: 'warning',
         message: 'Cash running low (below 30% of starting capital)',
         action: 'Plan for capital injection or focus on profitability',
+        bookReference: chapter ? {
+          book: chapter.book,
+          chapter: chapter.chapter,
+          chapterTitle: chapter.title,
+        } : undefined,
       });
     }
 
@@ -1081,20 +1107,32 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       .sort((a, b) => b[1] - a[1])[0];
     
     if (highestExpense && highestExpense[1] > monthExpenses * 0.4) {
+      const chapter = getChapterForTopic(userBook, 'cost-control');
       alerts.push({
         id: '5',
         type: 'info',
         message: `${highestExpense[0]} is ${((highestExpense[1] / monthExpenses) * 100).toFixed(0)}% of expenses`,
         action: 'Consider if this cost can be optimized',
+        bookReference: chapter ? {
+          book: chapter.book,
+          chapter: chapter.chapter,
+          chapterTitle: chapter.title,
+        } : undefined,
       });
     }
 
     if (monthSales === 0 && monthTransactions.length > 0) {
+      const chapter = getChapterForTopic(userBook, 'sales');
       alerts.push({
         id: '6',
         type: 'danger',
         message: 'No sales recorded this month',
         action: 'Focus on generating revenue immediately',
+        bookReference: chapter ? {
+          book: chapter.book,
+          chapter: chapter.chapter,
+          chapterTitle: chapter.title,
+        } : undefined,
       });
     }
 
