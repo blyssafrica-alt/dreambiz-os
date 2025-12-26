@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { FileText, Plus, Receipt, FileCheck } from 'lucide-react-native';
+import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send } from 'lucide-react-native';
 import { useState } from 'react';
 import {
   View,
@@ -12,14 +12,17 @@ import {
   Modal,
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
-import type { DocumentType, DocumentItem } from '@/types/business';
+import { useTheme } from '@/contexts/ThemeContext';
+import type { DocumentType, DocumentItem, DocumentStatus } from '@/types/business';
 
 export default function DocumentsScreen() {
-  const { business, documents, addDocument } = useBusiness();
+  const { business, documents, addDocument, updateDocument } = useBusiness();
+  const { theme } = useTheme();
   const [showModal, setShowModal] = useState(false);
   const [docType, setDocType] = useState<DocumentType>('invoice');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [items, setItems] = useState<{ description: string; quantity: string; price: string }[]>([
     { description: '', quantity: '1', price: '' }
   ]);
@@ -69,10 +72,13 @@ export default function DocumentsScreen() {
       total: subtotal,
       currency: business?.currency || 'USD',
       date: new Date().toISOString().split('T')[0],
+      dueDate: dueDate || undefined,
+      status: 'draft',
     });
 
     setCustomerName('');
     setCustomerPhone('');
+    setDueDate('');
     setItems([{ description: '', quantity: '1', price: '' }]);
     setShowModal(false);
     RNAlert.alert('Success', `${docType.charAt(0).toUpperCase() + docType.slice(1)} created`);
@@ -99,6 +105,58 @@ export default function DocumentsScreen() {
     }
   };
 
+  const getStatusIcon = (status?: DocumentStatus) => {
+    switch (status) {
+      case 'paid':
+        return <CheckCircle size={16} color="#10B981" />;
+      case 'sent':
+        return <Send size={16} color="#3B82F6" />;
+      case 'cancelled':
+        return <XCircle size={16} color="#EF4444" />;
+      default:
+        return <Clock size={16} color="#94A3B8" />;
+    }
+  };
+
+  const getStatusColor = (status?: DocumentStatus) => {
+    switch (status) {
+      case 'paid':
+        return '#10B981';
+      case 'sent':
+        return '#3B82F6';
+      case 'cancelled':
+        return '#EF4444';
+      default:
+        return '#94A3B8';
+    }
+  };
+
+  const getStatusLabel = (status?: DocumentStatus) => {
+    switch (status) {
+      case 'paid':
+        return 'Paid';
+      case 'sent':
+        return 'Sent';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Draft';
+    }
+  };
+
+  const isOverdue = (doc: any) => {
+    if (!doc.dueDate || doc.status === 'paid' || doc.status === 'cancelled') return false;
+    return new Date(doc.dueDate) < new Date();
+  };
+
+  const handleStatusChange = async (docId: string, newStatus: DocumentStatus) => {
+    try {
+      await updateDocument(docId, { status: newStatus });
+    } catch (error: any) {
+      RNAlert.alert('Error', error.message || 'Failed to update status');
+    }
+  };
+
   return (
     <>
       <Stack.Screen options={{ title: 'Documents' }} />
@@ -111,27 +169,43 @@ export default function DocumentsScreen() {
               <Text style={styles.emptyDesc}>Create professional invoices and receipts</Text>
             </View>
           ) : (
-            documents.map((doc) => (
-              <TouchableOpacity 
-                key={doc.id} 
-                style={styles.docCard}
-                onPress={() => router.push(`/document/${doc.id}` as any)}
-              >
-                <View style={styles.docHeader}>
-                  <View style={styles.docLeft}>
-                    <View style={styles.docIcon}>{getIcon(doc.type)}</View>
-                    <View>
-                      <Text style={styles.docNumber}>{doc.documentNumber}</Text>
-                      <Text style={styles.docCustomer}>{doc.customerName}</Text>
+            documents.map((doc) => {
+              const overdue = isOverdue(doc);
+              return (
+                <TouchableOpacity 
+                  key={doc.id} 
+                  style={[styles.docCard, overdue && { borderLeftWidth: 4, borderLeftColor: '#EF4444' }]}
+                  onPress={() => router.push(`/document/${doc.id}` as any)}
+                >
+                  <View style={styles.docHeader}>
+                    <View style={styles.docLeft}>
+                      <View style={styles.docIcon}>{getIcon(doc.type)}</View>
+                      <View>
+                        <Text style={styles.docNumber}>{doc.documentNumber}</Text>
+                        <Text style={styles.docCustomer}>{doc.customerName}</Text>
+                        {doc.dueDate && (
+                          <Text style={[styles.docDueDate, { color: overdue ? '#EF4444' : '#64748B' }]}>
+                            Due: {formatDate(doc.dueDate)} {overdue && '⚠️'}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.docRight}>
+                      <Text style={styles.docAmount}>{formatCurrency(doc.total)}</Text>
+                      <View style={styles.statusRow}>
+                        <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(doc.status)}20` }]}>
+                          {getStatusIcon(doc.status)}
+                          <Text style={[styles.statusText, { color: getStatusColor(doc.status) }]}>
+                            {getStatusLabel(doc.status)}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.docDate}>{formatDate(doc.date)}</Text>
                     </View>
                   </View>
-                  <View style={styles.docRight}>
-                    <Text style={styles.docAmount}>{formatCurrency(doc.total)}</Text>
-                    <Text style={styles.docDate}>{formatDate(doc.date)}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))
+                </TouchableOpacity>
+              );
+            })
           )}
         </ScrollView>
 
@@ -318,6 +392,25 @@ const styles = StyleSheet.create({
   docDate: {
     fontSize: 13,
     color: '#64748B',
+  },
+  docDueDate: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  statusRow: {
+    marginVertical: 4,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600' as const,
   },
   fab: {
     position: 'absolute',

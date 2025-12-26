@@ -40,6 +40,7 @@ export interface Transaction {
 }
 
 export type DocumentType = 'invoice' | 'receipt' | 'quotation';
+export type DocumentStatus = 'draft' | 'sent' | 'paid' | 'cancelled';
 
 export interface Document {
   id: string;
@@ -47,14 +48,42 @@ export interface Document {
   documentNumber: string;
   customerName: string;
   customerPhone?: string;
+  customerEmail?: string;
   items: DocumentItem[];
   subtotal: number;
   tax?: number;
   total: number;
   currency: Currency;
   date: string;
+  dueDate?: string;
+  status?: DocumentStatus;
   createdAt: string;
   notes?: string;
+}
+
+export interface Budget {
+  id: string;
+  name: string;
+  period: 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  categories: { category: string; budgeted: number }[];
+  totalBudget: number;
+  currency: Currency;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CashflowProjection {
+  id: string;
+  month: string;
+  openingBalance: number;
+  projectedIncome: number;
+  projectedExpenses: number;
+  closingBalance: number;
+  currency: Currency;
+  notes?: string;
+  createdAt: string;
 }
 
 export interface DocumentItem {

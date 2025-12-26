@@ -23,6 +23,8 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [cashflowProjections, setCashflowProjections] = useState<CashflowProjection[]>([]);
   const [exchangeRate, setExchangeRate] = useState<ExchangeRate>({
     usdToZwl: 25000,
     lastUpdated: new Date().toISOString(),
@@ -40,13 +42,15 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     }
 
     try {
-      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, exchangeRateRes] = await Promise.all([
+      const [businessRes, transactionsRes, documentsRes, productsRes, customersRes, suppliersRes, budgetsRes, cashflowRes, exchangeRateRes] = await Promise.all([
         supabase.from('business_profiles').select('*').eq('user_id', userId).single(),
         supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
         supabase.from('documents').select('*').eq('user_id', userId).order('date', { ascending: false }),
         supabase.from('products').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('customers').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('suppliers').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('budgets').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('cashflow_projections').select('*').eq('user_id', userId).order('month', { ascending: true }),
         supabase.from('exchange_rates').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
       ]);
 
@@ -88,12 +92,15 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           documentNumber: d.document_number,
           customerName: d.customer_name,
           customerPhone: d.customer_phone || undefined,
+          customerEmail: d.customer_email || undefined,
           items: d.items as any,
           subtotal: Number(d.subtotal),
           tax: d.tax ? Number(d.tax) : undefined,
           total: Number(d.total),
           currency: d.currency as any,
           date: d.date,
+          dueDate: d.due_date || undefined,
+          status: (d.status as any) || 'draft',
           createdAt: d.created_at,
           notes: d.notes || undefined,
         })));
@@ -144,6 +151,35 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           paymentTerms: s.payment_terms || undefined,
           createdAt: s.created_at,
           updatedAt: s.updated_at,
+        })));
+      }
+
+      if (budgetsRes.data) {
+        setBudgets(budgetsRes.data.map(b => ({
+          id: b.id,
+          name: b.name,
+          period: b.period as any,
+          categories: b.categories as any,
+          totalBudget: Number(b.total_budget),
+          currency: b.currency as any,
+          startDate: b.start_date,
+          endDate: b.end_date,
+          createdAt: b.created_at,
+          updatedAt: b.updated_at,
+        })));
+      }
+
+      if (cashflowRes.data) {
+        setCashflowProjections(cashflowRes.data.map(c => ({
+          id: c.id,
+          month: c.month,
+          openingBalance: Number(c.opening_balance),
+          projectedIncome: Number(c.projected_income),
+          projectedExpenses: Number(c.projected_expenses),
+          closingBalance: Number(c.closing_balance),
+          currency: c.currency as any,
+          notes: c.notes || undefined,
+          createdAt: c.created_at,
         })));
       }
 
@@ -524,12 +560,15 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
           document_number: documentNumber,
           customer_name: document.customerName,
           customer_phone: document.customerPhone || null,
+          customer_email: document.customerEmail || null,
           items: document.items,
           subtotal: document.subtotal,
           tax: document.tax || null,
           total: document.total,
           currency: document.currency,
           date: document.date,
+          due_date: document.dueDate || null,
+          status: document.status || 'draft',
           notes: document.notes || null,
         })
         .select()
@@ -543,12 +582,15 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
         documentNumber: data.document_number,
         customerName: data.customer_name,
         customerPhone: data.customer_phone || undefined,
+        customerEmail: data.customer_email || undefined,
         items: data.items as any,
         subtotal: Number(data.subtotal),
         tax: data.tax ? Number(data.tax) : undefined,
         total: Number(data.total),
         currency: data.currency as any,
         date: data.date,
+        dueDate: data.due_date || undefined,
+        status: (data.status as any) || 'draft',
         createdAt: data.created_at,
         notes: data.notes || undefined,
       };
@@ -556,6 +598,31 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       setDocuments([newDocument, ...documents]);
     } catch (error) {
       console.error('Failed to add document:', error);
+      throw error;
+    }
+  };
+
+  const updateDocument = async (id: string, updates: Partial<Document>) => {
+    try {
+      const updateData: any = {};
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.dueDate !== undefined) updateData.due_date = updates.dueDate || null;
+      if (updates.customerEmail !== undefined) updateData.customer_email = updates.customerEmail || null;
+      if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+
+      const { error } = await supabase
+        .from('documents')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = documents.map(d => 
+        d.id === id ? { ...d, ...updates } : d
+      );
+      setDocuments(updated);
+    } catch (error) {
+      console.error('Failed to update document:', error);
       throw error;
     }
   };
@@ -974,6 +1041,179 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     };
   };
 
+  // Budget Management
+  const addBudget = async (budget: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('budgets')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          name: budget.name,
+          period: budget.period,
+          categories: budget.categories,
+          total_budget: budget.totalBudget,
+          currency: budget.currency,
+          start_date: budget.startDate,
+          end_date: budget.endDate,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newBudget: Budget = {
+        id: data.id,
+        name: data.name,
+        period: data.period as any,
+        categories: data.categories as any,
+        totalBudget: Number(data.total_budget),
+        currency: data.currency as any,
+        startDate: data.start_date,
+        endDate: data.end_date,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      };
+
+      setBudgets([newBudget, ...budgets]);
+    } catch (error) {
+      console.error('Failed to add budget:', error);
+      throw error;
+    }
+  };
+
+  const updateBudget = async (id: string, updates: Partial<Budget>) => {
+    try {
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.period !== undefined) updateData.period = updates.period;
+      if (updates.categories !== undefined) updateData.categories = updates.categories;
+      if (updates.totalBudget !== undefined) updateData.total_budget = updates.totalBudget;
+      if (updates.startDate !== undefined) updateData.start_date = updates.startDate;
+      if (updates.endDate !== undefined) updateData.end_date = updates.endDate;
+
+      const { error } = await supabase
+        .from('budgets')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = budgets.map(b => 
+        b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b
+      );
+      setBudgets(updated);
+    } catch (error) {
+      console.error('Failed to update budget:', error);
+      throw error;
+    }
+  };
+
+  const deleteBudget = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setBudgets(budgets.filter(b => b.id !== id));
+    } catch (error) {
+      console.error('Failed to delete budget:', error);
+      throw error;
+    }
+  };
+
+  // Cashflow Projections Management
+  const addCashflowProjection = async (projection: Omit<CashflowProjection, 'id' | 'createdAt'>) => {
+    if (!userId || !business?.id) throw new Error('User or business not found');
+
+    try {
+      const { data, error } = await supabase
+        .from('cashflow_projections')
+        .insert({
+          user_id: userId,
+          business_id: business.id,
+          month: projection.month,
+          opening_balance: projection.openingBalance,
+          projected_income: projection.projectedIncome,
+          projected_expenses: projection.projectedExpenses,
+          closing_balance: projection.closingBalance,
+          currency: projection.currency,
+          notes: projection.notes || null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newProjection: CashflowProjection = {
+        id: data.id,
+        month: data.month,
+        openingBalance: Number(data.opening_balance),
+        projectedIncome: Number(data.projected_income),
+        projectedExpenses: Number(data.projected_expenses),
+        closingBalance: Number(data.closing_balance),
+        currency: data.currency as any,
+        notes: data.notes || undefined,
+        createdAt: data.created_at,
+      };
+
+      setCashflowProjections([...cashflowProjections, newProjection].sort((a, b) => 
+        a.month.localeCompare(b.month)
+      ));
+    } catch (error) {
+      console.error('Failed to add cashflow projection:', error);
+      throw error;
+    }
+  };
+
+  const updateCashflowProjection = async (id: string, updates: Partial<CashflowProjection>) => {
+    try {
+      const updateData: any = {};
+      if (updates.month !== undefined) updateData.month = updates.month;
+      if (updates.openingBalance !== undefined) updateData.opening_balance = updates.openingBalance;
+      if (updates.projectedIncome !== undefined) updateData.projected_income = updates.projectedIncome;
+      if (updates.projectedExpenses !== undefined) updateData.projected_expenses = updates.projectedExpenses;
+      if (updates.closingBalance !== undefined) updateData.closing_balance = updates.closingBalance;
+      if (updates.notes !== undefined) updateData.notes = updates.notes || null;
+
+      const { error } = await supabase
+        .from('cashflow_projections')
+        .update(updateData)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      const updated = cashflowProjections.map(c => 
+        c.id === id ? { ...c, ...updates } : c
+      );
+      setCashflowProjections(updated.sort((a, b) => a.month.localeCompare(b.month)));
+    } catch (error) {
+      console.error('Failed to update cashflow projection:', error);
+      throw error;
+    }
+  };
+
+  const deleteCashflowProjection = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('cashflow_projections')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setCashflowProjections(cashflowProjections.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('Failed to delete cashflow projection:', error);
+      throw error;
+    }
+  };
+
   return {
     business,
     transactions,
@@ -981,6 +1221,8 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     products,
     customers,
     suppliers,
+    budgets,
+    cashflowProjections,
     exchangeRate,
     isLoading,
     hasOnboarded,
@@ -989,6 +1231,7 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     updateTransaction,
     deleteTransaction,
     addDocument,
+    updateDocument,
     addProduct,
     updateProduct,
     deleteProduct,
@@ -998,6 +1241,12 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
     addSupplier,
     updateSupplier,
     deleteSupplier,
+    addBudget,
+    updateBudget,
+    deleteBudget,
+    addCashflowProjection,
+    updateCashflowProjection,
+    deleteCashflowProjection,
     updateExchangeRate,
     getDashboardMetrics,
   };

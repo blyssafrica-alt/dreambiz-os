@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck } from "lucide-react-native";
+import { Home, DollarSign, FileText, Calculator, Settings, Package, Users, Truck, BarChart3, Target, TrendingUp } from "lucide-react-native";
 import React from "react";
 import { Platform, View, ActivityIndicator } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -112,6 +112,45 @@ export default function TabLayout() {
           title: "Documents",
           tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
             <FileText 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="reports"
+        options={{
+          title: "Reports",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <BarChart3 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          title: "Budgets",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <Target 
+              size={focused ? 26 : 24} 
+              color={color} 
+              strokeWidth={focused ? 2.5 : 2}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="cashflow"
+        options={{
+          title: "Cashflow",
+          tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+            <TrendingUp 
               size={focused ? 26 : 24} 
               color={color} 
               strokeWidth={focused ? 2.5 : 2}
