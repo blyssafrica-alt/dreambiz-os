@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Share as ShareIcon, Download, Mail } from 'lucide-react-native';
+import { Share as ShareIcon, Download, Mail, FileDown } from 'lucide-react-native';
 import { 
   View, 
   Text, 
@@ -15,6 +15,7 @@ import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Document } from '@/types/business';
 import { getDocumentTemplate, generateDocumentContent } from '@/lib/document-templates';
+import { exportToPDF } from '@/lib/pdf-export';
 
 export default function DocumentDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -77,6 +78,18 @@ export default function DocumentDetailScreen() {
     }
   };
 
+  const handleExportPDF = async () => {
+    if (!document || !business) return;
+    
+    try {
+      await exportToPDF(document, business);
+      RNAlert.alert('Success', 'PDF exported successfully');
+    } catch (error: any) {
+      console.error('PDF export failed:', error);
+      RNAlert.alert('Error', error.message || 'Failed to export PDF. Make sure expo-print is installed.');
+    }
+  };
+
   const handleEmail = () => {
     if (!document.customerEmail) {
       RNAlert.alert('No Email', 'Customer email not available');
@@ -105,6 +118,9 @@ export default function DocumentDetailScreen() {
           title: document.documentNumber,
           headerRight: () => (
             <View style={{ flexDirection: 'row', gap: 12, marginRight: 16 }}>
+              <TouchableOpacity onPress={handleExportPDF}>
+                <FileDown size={22} color={theme.accent.primary} />
+              </TouchableOpacity>
               {document.customerEmail && (
                 <TouchableOpacity onPress={handleEmail}>
                   <Mail size={22} color={theme.accent.primary} />
@@ -246,6 +262,13 @@ export default function DocumentDetailScreen() {
         })()}
 
         <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: theme.accent.primary }]} 
+            onPress={handleExportPDF}
+          >
+            <FileDown size={20} color="#FFF" />
+            <Text style={styles.actionButtonText}>Export PDF</Text>
+          </TouchableOpacity>
           {document.customerEmail && (
             <TouchableOpacity 
               style={[styles.actionButton, styles.emailButton, { backgroundColor: theme.accent.success }]} 
@@ -256,7 +279,7 @@ export default function DocumentDetailScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity 
-            style={[styles.actionButton, styles.shareButton, { backgroundColor: theme.accent.primary }]} 
+            style={[styles.actionButton, styles.shareButton, { backgroundColor: theme.text.secondary }]} 
             onPress={handleShare}
           >
             <ShareIcon size={20} color="#FFF" />

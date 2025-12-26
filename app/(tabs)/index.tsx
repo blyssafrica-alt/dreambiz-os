@@ -8,7 +8,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Sparkles,
-  Activity
+  Activity,
+  BarChart3,
+  Search
 } from 'lucide-react-native';
 import { 
   View, 
@@ -23,14 +25,94 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Alert } from '@/types/business';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
+import { LineChart, PieChart, BarChart } from '@/components/Charts';
+import GlobalSearch from '@/components/GlobalSearch';
 
 export default function DashboardScreen() {
-  const { business, getDashboardMetrics } = useBusiness();
+  const { business, getDashboardMetrics, transactions } = useBusiness();
   const { theme } = useTheme();
   const metrics = getDashboardMetrics();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    const now = new Date();
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date(now);
+      date.setDate(date.getDate() - (29 - i));
+      return date.toISOString().split('T')[0];
+    });
+
+    // Sales trend (last 30 days)
+    const salesData = last30Days.map(date => {
+      return transactions
+        .filter(t => t.type === 'sale' && t.date === date)
+        .reduce((sum, t) => sum + t.amount, 0);
+    });
+
+    // Expense breakdown by category
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthExpenses = transactions.filter(t => 
+      t.type === 'expense' && t.date >= monthStart
+    );
+    
+    const expenseByCategory = new Map<string, number>();
+    monthExpenses.forEach(t => {
+      expenseByCategory.set(t.category, (expenseByCategory.get(t.category) || 0) + t.amount);
+    });
+
+    const expenseChartData = Array.from(expenseByCategory.entries())
+      .map(([category, amount]) => ({
+        label: category,
+        value: amount,
+        color: getCategoryColor(category),
+      }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    // Monthly profit/loss comparison (last 3 months)
+    const monthlyProfitData = Array.from({ length: 3 }, (_, i) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (2 - i), 1);
+      const monthStart = monthDate.toISOString();
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).toISOString();
+      
+      const monthSales = transactions
+        .filter(t => t.type === 'sale' && t.date >= monthStart && t.date <= monthEnd)
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      const monthExpenses = transactions
+        .filter(t => t.type === 'expense' && t.date >= monthStart && t.date <= monthEnd)
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return {
+        label: monthDate.toLocaleDateString('en-ZW', { month: 'short' }),
+        value: monthSales - monthExpenses,
+        color: (monthSales - monthExpenses) >= 0 ? '#10B981' : '#EF4444',
+      };
+    });
+
+    return {
+      salesTrend: salesData,
+      salesLabels: last30Days.map(d => {
+        const date = new Date(d);
+        return date.getDate().toString();
+      }),
+      expenseBreakdown: expenseChartData,
+      monthlyProfit: monthlyProfitData,
+    };
+  }, [transactions]);
+
+  const getCategoryColor = (category: string): string => {
+    const colors = [
+      '#0066CC', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6',
+      '#6366F1', '#EF4444', '#14B8A6', '#F97316', '#A855F7',
+    ];
+    const index = category.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
 
   useEffect(() => {
     Animated.parallel([
@@ -92,12 +174,20 @@ export default function DashboardScreen() {
             <Text style={styles.greeting}>Welcome back 👋</Text>
             <Text style={styles.businessName}>{business?.name}</Text>
           </View>
-          <TouchableOpacity 
-            style={[styles.quickAddButton, { backgroundColor: theme.background.card }]} 
-            onPress={() => router.push('/(tabs)/finances' as any)}
-          >
-            <Plus size={20} color={theme.accent.primary} strokeWidth={3} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={[styles.quickAddButton, { backgroundColor: theme.background.card }]} 
+              onPress={() => setShowSearch(true)}
+            >
+              <Search size={20} color={theme.accent.primary} strokeWidth={2.5} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.quickAddButton, { backgroundColor: theme.background.card }]} 
+              onPress={() => router.push('/(tabs)/finances' as any)}
+            >
+              <Plus size={20} color={theme.accent.primary} strokeWidth={3} />
+            </TouchableOpacity>
+          </View>
         </View>
       </LinearGradient>
 
@@ -213,6 +303,58 @@ export default function DashboardScreen() {
             </View>
           )}
 
+          {/* Charts Section */}
+          <View style={styles.chartsSection}>
+            <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Visual Analytics</Text>
+            
+            {/* Sales Trend Chart */}
+            {chartData.salesTrend.some(v => v > 0) && (
+              <View style={[styles.chartCard, { backgroundColor: theme.background.card }]}>
+                <View style={styles.chartHeader}>
+                  <BarChart3 size={20} color={theme.accent.primary} />
+                  <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Sales Trend (Last 30 Days)</Text>
+                </View>
+                <LineChart
+                  data={chartData.salesTrend}
+                  labels={chartData.salesLabels}
+                  color={theme.accent.success}
+                  height={180}
+                />
+              </View>
+            )}
+
+            {/* Expense Breakdown Pie Chart */}
+            {chartData.expenseBreakdown.length > 0 && (
+              <View style={[styles.chartCard, { backgroundColor: theme.background.card }]}>
+                <View style={styles.chartHeader}>
+                  <BarChart3 size={20} color={theme.accent.primary} />
+                  <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Expense Breakdown</Text>
+                </View>
+                <PieChart
+                  data={chartData.expenseBreakdown}
+                  size={220}
+                  showLabels={true}
+                  showLegend={true}
+                />
+              </View>
+            )}
+
+            {/* Monthly Profit/Loss Bar Chart */}
+            {chartData.monthlyProfit.length > 0 && (
+              <View style={[styles.chartCard, { backgroundColor: theme.background.card }]}>
+                <View style={styles.chartHeader}>
+                  <BarChart3 size={20} color={theme.accent.primary} />
+                  <Text style={[styles.chartTitle, { color: theme.text.primary }]}>Monthly Profit/Loss</Text>
+                </View>
+                <BarChart
+                  data={chartData.monthlyProfit}
+                  height={180}
+                  showValues={true}
+                />
+              </View>
+            )}
+          </View>
+
           {metrics.topCategories.length > 0 && (
             <View style={styles.categoriesSection}>
               <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>Top Categories</Text>
@@ -257,6 +399,8 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
       </ScrollView>
+
+      <GlobalSearch visible={showSearch} onClose={() => setShowSearch(false)} />
     </View>
   );
 }
@@ -274,6 +418,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   greeting: {
     fontSize: 16,
@@ -577,6 +725,29 @@ const styles = StyleSheet.create({
   },
   actionButtonSecondaryText: {
     fontSize: 17,
+    fontWeight: '700' as const,
+  },
+  chartsSection: {
+    marginBottom: 24,
+  },
+  chartCard: {
+    padding: 20,
+    borderRadius: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 16,
     fontWeight: '700' as const,
   },
 });
