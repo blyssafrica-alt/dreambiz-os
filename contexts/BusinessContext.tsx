@@ -215,13 +215,21 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
               profileExists = true;
             } else {
               // Profile truly doesn't exist - we cannot proceed
-              throw new Error(
-                'User profile does not exist in database and could not be created.\n\n' +
-                'SOLUTION:\n' +
-                '1. Run the SQL in database/create_user_profile_trigger.sql in Supabase SQL Editor\n' +
-                '2. Then run: SELECT public.sync_user_profile(\'' + authUser.id + '\'::UUID);\n' +
-                '3. Or run: SELECT public.sync_existing_users();'
-              );
+              // Provide clear instructions with the exact SQL to run
+              const errorMessage = 
+                '❌ CRITICAL: User profile does not exist in database.\n\n' +
+                'The user profile must exist before creating a business profile.\n\n' +
+                'QUICK FIX - Run this in Supabase SQL Editor (select "No limit"):\n\n' +
+                'Option 1 - Use RPC function:\n' +
+                `SELECT public.sync_user_profile('${authUser.id}'::UUID);\n\n` +
+                'Option 2 - Sync all users:\n' +
+                'SELECT public.sync_existing_users();\n\n' +
+                'Option 3 - Manual insert (if above don\'t work):\n' +
+                'See database/emergency_create_user_profile.sql\n\n' +
+                'After running one of these, refresh the app and try again.';
+              
+              console.error(errorMessage);
+              throw new Error(errorMessage);
             }
           } catch (verifyError: any) {
             const verifyMsg = verifyError?.message || String(verifyError);
