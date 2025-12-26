@@ -286,7 +286,66 @@ export default function DocumentDetailScreen() {
             <Text style={styles.totalLabelFinal}>Total</Text>
             <Text style={styles.totalValueFinal}>{formatCurrency(document.total)}</Text>
           </View>
+          {document.type === 'invoice' && (
+            <>
+              <View style={styles.totalDivider} />
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Paid</Text>
+                <Text style={[styles.totalValue, { color: '#10B981' }]}>{formatCurrency(paidAmount)}</Text>
+              </View>
+              <View style={styles.totalDivider} />
+              <View style={styles.totalRow}>
+                <Text style={[styles.totalLabelFinal, { color: outstandingAmount > 0 ? '#EF4444' : '#10B981' }]}>
+                  Outstanding
+                </Text>
+                <Text style={[styles.totalValueFinal, { color: outstandingAmount > 0 ? '#EF4444' : '#10B981' }]}>
+                  {formatCurrency(outstandingAmount)}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
+
+        {/* Payment History */}
+        {document.type === 'invoice' && (
+          <View style={styles.paymentsSection}>
+            <View style={styles.paymentsHeader}>
+              <Text style={styles.paymentsTitle}>Payment History</Text>
+              {outstandingAmount > 0 && (
+                <TouchableOpacity
+                  style={[styles.addPaymentButton, { backgroundColor: theme.accent.primary }]}
+                  onPress={() => setShowPaymentModal(true)}
+                >
+                  <Plus size={16} color="#FFF" />
+                  <Text style={styles.addPaymentText}>Add Payment</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {documentPayments.length === 0 ? (
+              <Text style={styles.noPaymentsText}>No payments recorded yet</Text>
+            ) : (
+              documentPayments.map(payment => (
+                <View key={payment.id} style={styles.paymentCard}>
+                  <View style={styles.paymentRow}>
+                    <View style={styles.paymentInfo}>
+                      <Text style={styles.paymentAmount}>{formatCurrency(payment.amount)}</Text>
+                      <Text style={styles.paymentMethod}>{payment.paymentMethod.replace('_', ' ').toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.paymentRight}>
+                      <Text style={styles.paymentDate}>{new Date(payment.paymentDate).toLocaleDateString()}</Text>
+                      <TouchableOpacity onPress={() => handleDeletePayment(payment.id)}>
+                        <Trash2 size={16} color={theme.accent.danger} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {payment.reference && (
+                    <Text style={styles.paymentReference}>Ref: {payment.reference}</Text>
+                  )}
+                </View>
+              ))
+            )}
+          </View>
+        )}
 
         {/* Template-specific fields */}
         {template && (() => {
