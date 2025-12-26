@@ -217,23 +217,30 @@ export const [BusinessContext, useBusiness] = createContextHook(() => {
       }
       
       // Final check: Try to verify the user exists in the database by attempting a simple query
-      // This helps catch cases where the profile doesn't actually exist despite duplicate key errors
-      try {
-        const provider = getProvider();
-        const verifyProfile = await provider.getUserProfile(userId);
-        if (!verifyProfile && !profileExistsButUnreadable) {
-          // Profile doesn't exist and we can't create it - must set up trigger
-          throw new Error('User profile does not exist in database. Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor, then run: SELECT public.sync_existing_users();');
-        }
-      } catch (verifyError: any) {
-        // If it's just a "not found" error and we got a duplicate key earlier, that's okay
-        // The duplicate key confirms the profile exists in DB
-        if (!profileExistsButUnreadable && !profileExists) {
+      // However, if we already know the profile exists (from RPC or duplicate key), skip this check
+      // because RLS might prevent reading it even though it exists in the database
+      if (!profileExists && !profileExistsButUnreadable) {
+        try {
+          const provider = getProvider();
+          const verifyProfile = await provider.getUserProfile(userId);
+          if (!verifyProfile) {
+            // Profile doesn't exist and we can't create it - must set up trigger
+            throw new Error('User profile does not exist in database. Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor, then run: SELECT public.sync_existing_users();');
+          }
+        } catch (verifyError: any) {
+          // If it's just a "not found" error, that's a problem
           const verifyMsg = verifyError?.message || String(verifyError);
           if (!verifyMsg.includes('PGRST116') && !verifyMsg.includes('No rows returned')) {
             throw new Error(`Cannot verify user profile: ${verifyMsg}. Please ensure the database trigger is set up.`);
+          } else {
+            // "Not found" error - profile doesn't exist
+            throw new Error('User profile does not exist in database. Please run the SQL in database/create_user_profile_trigger.sql in your Supabase SQL Editor, then run: SELECT public.sync_existing_users();');
           }
         }
+      } else {
+        // We know the profile exists (from RPC or duplicate key) - proceed even if we can't read it
+        // The foreign key constraint will be satisfied because the profile exists in DB
+        console.log('✅ Profile confirmed to exist (may not be readable due to RLS) - proceeding with business creation');
       }
 
       // Prepare the data object - only include id if it's a valid UUID
