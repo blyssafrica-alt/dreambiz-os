@@ -98,7 +98,7 @@ export default function ReceiptScanScreen() {
       
       // Show manual entry modal
       showManualEntryModal();
-    } catch (error: any) {
+    } catch {
       setProcessing(false);
       RNAlert.alert('Error', 'Failed to process receipt. Please enter details manually.');
       showManualEntryModal();

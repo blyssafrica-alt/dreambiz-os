@@ -822,6 +822,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   input: {
     padding: 12,
     borderRadius: 8,

@@ -180,9 +180,9 @@ export default function FinancesScreen() {
 
     try {
       if (Platform.OS === 'web') {
-        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const blob = new Blob([csvContent], { type: 'text/csv', lastModified: Date.now() });
         const url = URL.createObjectURL(blob);
-        const a = (global as any).document.createElement('a');
+        const a = (typeof window !== 'undefined' ? window : global as any).document.createElement('a');
         a.href = url;
         a.download = `dreambig-transactions-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
@@ -593,6 +593,14 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 4,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-end',
   },
   fab: {
     position: 'absolute',

@@ -262,7 +262,7 @@ export default function InsightsScreen() {
               No Insights Yet
             </Text>
             <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
-              As you use the app, we'll generate personalized insights and recommendations for your business.
+              As you use the app, we&apos;ll generate personalized insights and recommendations for your business.
             </Text>
           </View>
         ) : (

@@ -419,11 +419,6 @@ export default function BudgetsScreen() {
                             value: cat.budgeted,
                             color: theme.accent.primary,
                           }))}
-                          secondaryData={categoryData.map(cat => ({
-                            label: cat.category,
-                            value: cat.spent,
-                            color: cat.spent > cat.budgeted ? theme.accent.danger : theme.accent.success,
-                          }))}
                           height={200}
                         />
                       </View>
@@ -628,6 +623,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  templateButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addButton: {
     width: 44,

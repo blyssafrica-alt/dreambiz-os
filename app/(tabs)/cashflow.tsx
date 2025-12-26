@@ -194,11 +194,6 @@ export default function CashflowScreen() {
                     value: inc,
                     color: theme.accent.success,
                   }))}
-                  secondaryData={chartData.expenses.map((exp, i) => ({
-                    label: chartData.labels[i],
-                    value: exp,
-                    color: theme.accent.danger,
-                  }))}
                   height={200}
                 />
               )}

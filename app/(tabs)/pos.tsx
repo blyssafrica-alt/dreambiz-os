@@ -109,7 +109,6 @@ export default function POSScreen() {
 
       await addDocument({
         type: 'invoice',
-        documentNumber,
         customerName: customerName.trim(),
         items: documentItems,
         subtotal,

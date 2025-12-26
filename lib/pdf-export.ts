@@ -226,6 +226,7 @@ export async function exportToPDF(
 ): Promise<void> {
   try {
     // Check if expo-print is available
+    // eslint-disable-next-line import/no-unresolved
     const { printToFileAsync } = await import('expo-print');
     const html = await generatePDF(document, business, options);
     
@@ -235,11 +236,12 @@ export async function exportToPDF(
     });
     
     // Share the PDF
+    // eslint-disable-next-line import/no-unresolved
     const { shareAsync } = await import('expo-sharing');
     if (await shareAsync.isAvailableAsync()) {
       await shareAsync.shareAsync(uri);
     }
-  } catch (error) {
+  } catch {
     // Fallback: if expo-print is not available, use text export
     console.warn('PDF export not available, using text format');
     const content = generateDocumentContent(document, business, getDocumentTemplate(document.type, business.type));

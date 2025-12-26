@@ -1,5 +1,5 @@
 import { Stack, router } from 'expo-router';
-import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake, AlertCircle, Filter, Bookmark, BookmarkCheck } from 'lucide-react-native';
+import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake, AlertCircle, Filter, Bookmark, BookmarkCheck, X } from 'lucide-react-native';
 import { useState, useMemo, useEffect } from 'react';
 import {
   View,

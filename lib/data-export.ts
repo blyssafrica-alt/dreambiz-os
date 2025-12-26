@@ -154,7 +154,9 @@ export function exportAllData(
 
 export async function shareData(data: string, filename: string, mimeType: string) {
   // For React Native, we'll use expo-sharing
+  // eslint-disable-next-line import/no-unresolved
   const { shareAsync } = await import('expo-sharing');
+  // eslint-disable-next-line import/no-unresolved
   const { writeAsStringAsync, documentDirectory } = await import('expo-file-system');
   
   if (!documentDirectory) {

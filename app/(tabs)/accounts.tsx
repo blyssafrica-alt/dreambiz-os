@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import type { Document, Currency } from '@/types/business';
 import type { AccountsReceivable, AccountsPayable } from '@/types/payments';
 
 export default function AccountsScreen() {
