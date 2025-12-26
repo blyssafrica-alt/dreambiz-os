@@ -1,6 +1,6 @@
 import { Stack, router } from 'expo-router';
-import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake, AlertCircle, Filter } from 'lucide-react-native';
-import { useState, useMemo } from 'react';
+import { FileText, Plus, Receipt, FileCheck, CheckCircle, Clock, XCircle, Send, ShoppingCart, FileSignature, Handshake, AlertCircle, Filter, Bookmark, BookmarkCheck } from 'lucide-react-native';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { useBusiness } from '@/contexts/BusinessContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { DocumentType, DocumentItem, DocumentStatus } from '@/types/business';
 import { getDocumentTemplate } from '@/lib/document-templates';
+import { getFilterPresets, saveFilterPreset, deleteFilterPreset } from '@/lib/filter-presets';
+import type { FilterPreset } from '@/lib/filter-presets';
 
 export default function DocumentsScreen() {
   const { business, documents, addDocument, updateDocument } = useBusiness();
@@ -32,6 +34,9 @@ export default function DocumentsScreen() {
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<DocumentType | 'all'>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
+  const [showPresetModal, setShowPresetModal] = useState(false);
+  const [presetName, setPresetName] = useState('');
 
   // Get template for current document type and business type
   const template = useMemo(() => {
@@ -73,6 +78,71 @@ export default function DocumentsScreen() {
 
     return filtered;
   }, [documents, searchQuery, statusFilter, typeFilter]);
+
+  // Load filter presets
+  useEffect(() => {
+    loadFilterPresets();
+  }, []);
+
+  const loadFilterPresets = async () => {
+    const presets = await getFilterPresets();
+    setFilterPresets(presets);
+  };
+
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) {
+      RNAlert.alert('Missing Name', 'Please enter a name for this filter preset');
+      return;
+    }
+
+    try {
+      await saveFilterPreset({
+        name: presetName.trim(),
+        filters: {
+          searchQuery,
+          statusFilter,
+          typeFilter,
+        },
+      });
+      await loadFilterPresets();
+      setShowPresetModal(false);
+      setPresetName('');
+      RNAlert.alert('Success', 'Filter preset saved');
+    } catch (error: any) {
+      RNAlert.alert('Error', error.message || 'Failed to save filter preset');
+    }
+  };
+
+  const handleLoadPreset = (preset: FilterPreset) => {
+    const filters = preset.filters;
+    if (filters.searchQuery) setSearchQuery(filters.searchQuery);
+    if (filters.statusFilter) setStatusFilter(filters.statusFilter);
+    if (filters.typeFilter) setTypeFilter(filters.typeFilter);
+    setShowFilters(false);
+    RNAlert.alert('Success', `Loaded preset: ${preset.name}`);
+  };
+
+  const handleDeletePreset = async (id: string) => {
+    RNAlert.alert(
+      'Delete Preset',
+      'Are you sure you want to delete this filter preset?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteFilterPreset(id);
+              await loadFilterPresets();
+            } catch (error: any) {
+              RNAlert.alert('Error', error.message || 'Failed to delete preset');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Reset template fields when document type changes
   const handleDocTypeChange = (newType: DocumentType) => {
